@@ -355,7 +355,9 @@ fn pdf_findings(bytes: &[u8]) -> Vec<Finding> {
             if let Ok(s) = obj.as_str() {
                 let val = String::from_utf8_lossy(s).trim().to_string();
                 if !val.is_empty() {
-                    out.push(Finding::new(label, clean_pdf_date(&val), kind));
+                    // Only the date fields get date-formatting — never the text fields.
+                    let display = if kind == "date" { clean_pdf_date(&val) } else { val };
+                    out.push(Finding::new(label, display, kind));
                 }
             }
         }

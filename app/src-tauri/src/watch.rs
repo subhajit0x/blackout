@@ -69,10 +69,28 @@ mod desktop {
     use super::{is_cleanable, WatchEvent};
     use blackout_core::{clean_file, ffmpeg_available};
     use notify::{EventKind, RecursiveMode, Watcher};
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
     use tauri::{AppHandle, Emitter};
+
+    /// Dropping this stops both the OS watcher and the debounce worker thread.
+    pub struct WatchGuard {
+        _watcher: notify::RecommendedWatcher,
+        running: Arc<AtomicBool>,
+    }
+    impl Drop for WatchGuard {
+        fn drop(&mut self) {
+            self.running.store(false, Ordering::Relaxed);
+        }
+    }
+
+    /// A new file fires several events while it's still being written. We record
+    /// the time of the *last* event per path and only clean once it has been
+    /// quiet (write finished) for SETTLE — so we never read a half-written file.
+    const SETTLE: Duration = Duration::from_millis(300);
 
     pub fn spawn(
         folder: PathBuf,
@@ -80,9 +98,12 @@ mod desktop {
         app: AppHandle,
     ) -> Result<Box<dyn std::any::Any + Send>, String> {
         let ffmpeg = ffmpeg_available();
-        let seen = Arc::new(Mutex::new(HashSet::<PathBuf>::new()));
-        let out2 = out_dir.clone();
+        let pending: Arc<Mutex<HashMap<PathBuf, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
+        let done: Arc<Mutex<HashSet<PathBuf>>> = Arc::new(Mutex::new(HashSet::new()));
+        let running = Arc::new(AtomicBool::new(true));
 
+        // --- notify callback: just record "this path changed at T" ---
+        let (p_cb, d_cb, out_cb) = (pending.clone(), done.clone(), out_dir.clone());
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             let event = match res {
                 Ok(e) => e,
@@ -92,33 +113,62 @@ mod desktop {
                 return;
             }
             for p in event.paths {
-                // Skip our own output folder, non-files, and non-cleanable types.
-                if p.starts_with(&out2) || !is_cleanable(&p) || !p.is_file() {
+                if p.starts_with(&out_cb) || !is_cleanable(&p) {
                     continue;
                 }
-                // De-dup: the OS fires several events per save.
-                {
-                    let mut s = seen.lock().unwrap();
-                    if !s.insert(p.clone()) {
-                        continue;
-                    }
+                if d_cb.lock().unwrap().contains(&p) {
+                    continue; // already cleaned this one
                 }
-                let report = clean_file(&p, &out2, ffmpeg);
-                let _ = app.emit(
-                    "watch-cleaned",
-                    WatchEvent {
-                        name: p.file_name().and_then(|n| n.to_str()).unwrap_or("?").to_string(),
-                        status: report.status,
-                        removed: report.removed,
-                    },
-                );
+                p_cb.lock().unwrap().insert(p, Instant::now());
             }
         })
         .map_err(|e| e.to_string())?;
-
         watcher
             .watch(&folder, RecursiveMode::NonRecursive)
             .map_err(|e| e.to_string())?;
-        Ok(Box::new(watcher))
+
+        // --- worker: clean files once they've settled ---
+        let run2 = running.clone();
+        let out2 = out_dir.clone();
+        std::thread::spawn(move || {
+            while run2.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(120));
+                let ready: Vec<PathBuf> = {
+                    let mut pend = pending.lock().unwrap();
+                    let now = Instant::now();
+                    let ready: Vec<PathBuf> = pend
+                        .iter()
+                        .filter(|(_, t)| now.duration_since(**t) >= SETTLE)
+                        .map(|(p, _)| p.clone())
+                        .collect();
+                    for p in &ready {
+                        pend.remove(p);
+                    }
+                    ready
+                };
+                for p in ready {
+                    if !p.is_file() {
+                        continue;
+                    }
+                    // Still empty/being written? Re-queue and wait.
+                    if std::fs::metadata(&p).map(|m| m.len() == 0).unwrap_or(true) {
+                        pending.lock().unwrap().insert(p, Instant::now());
+                        continue;
+                    }
+                    done.lock().unwrap().insert(p.clone());
+                    let report = clean_file(&p, &out2, ffmpeg);
+                    let _ = app.emit(
+                        "watch-cleaned",
+                        WatchEvent {
+                            name: p.file_name().and_then(|n| n.to_str()).unwrap_or("?").to_string(),
+                            status: report.status,
+                            removed: report.removed,
+                        },
+                    );
+                }
+            }
+        });
+
+        Ok(Box::new(WatchGuard { _watcher: watcher, running }))
     }
 }
