@@ -150,7 +150,78 @@ pub fn opsec_score() -> OpsecReport {
     }
 
     let score = tally(&checks);
-    OpsecReport { score, checks }
+    let device = mac_device();
+    let guide = mac_guide(&checks, &device);
+    OpsecReport { score, device, checks, guide }
+}
+
+fn mac_device() -> crate::DeviceInfo {
+    let name = out("sw_vers", &["-productName"]).unwrap_or_else(|| "macOS".into());
+    let ver = out("sw_vers", &["-productVersion"]).unwrap_or_default();
+    let model = out("sysctl", &["-n", "hw.model"]).unwrap_or_default();
+    crate::device(&name, &ver, &model)
+}
+
+/// First version component >= `major` (e.g. macOS 13+ for Lockdown Mode).
+fn version_ge(v: &str, major: u32) -> bool {
+    v.split('.').next().and_then(|s| s.parse::<u32>().ok()).map(|m| m >= major).unwrap_or(false)
+}
+
+/// How-to text (+ optional one-tap fix id) for a failing check.
+fn mac_howto(label: &str) -> Option<(&'static str, Option<&'static str>)> {
+    Some(match label {
+        "Disk encryption" => ("System Settings ▸ Privacy & Security ▸ FileVault ▸ Turn On. Store the recovery key somewhere safe and offline.", Some("filevault")),
+        "Firewall" => ("Press Fix (asks your password), or System Settings ▸ Network ▸ Firewall ▸ On.", Some("firewall")),
+        "VPN" => ("Connect a VPN you trust before using untrusted Wi-Fi. BLACKOUT doesn't bundle one on purpose — pick a no-logs provider.", None),
+        "Screen lock" => ("Press Fix, or System Settings ▸ Lock Screen ▸ 'Require password immediately after sleep or screen saver begins'.", Some("screenlock")),
+        "Automatic login" => ("System Settings ▸ Users & Groups ▸ turn Automatic login Off so a password is needed at startup.", None),
+        "AirDrop" => ("Press Fix to set AirDrop to Off, or Control Center ▸ AirDrop ▸ 'Contacts Only'.", Some("airdrop")),
+        "Bluetooth" => ("Turn Bluetooth off from Control Center when you're not actively using it.", None),
+        "Remote login (SSH)" => ("If you don't use SSH: System Settings ▸ General ▸ Sharing ▸ turn off Remote Login.", None),
+        "Screen sharing" => ("System Settings ▸ General ▸ Sharing ▸ turn off Screen Sharing and Remote Management.", None),
+        "Gatekeeper" => ("Run `sudo spctl --master-enable` in Terminal, or System Settings ▸ Privacy & Security ▸ allow only App Store & identified developers.", None),
+        "System Integrity Protection" => ("Reboot into Recovery (hold power on Apple Silicon) ▸ Terminal ▸ run `csrutil enable` ▸ restart.", None),
+        "DNS privacy" => ("Use encrypted DNS (a trusted DoH/DoT provider) or route through your VPN so your provider can't log the sites you visit.", None),
+        "App permissions" => ("Press Fix to grant Full Disk Access for a detailed audit, or review System Settings ▸ Privacy & Security ▸ Camera/Microphone and remove apps you don't trust.", Some("fulldisk")),
+        _ => return None,
+    })
+}
+
+/// Turn the failing checks into a prioritized, device-aware to-do list.
+fn mac_guide(checks: &[crate::Check], device: &crate::DeviceInfo) -> Vec<crate::GuideStep> {
+    let mut failing: Vec<&crate::Check> = checks
+        .iter()
+        .filter(|c| matches!(c.status.as_str(), "bad" | "warn" | "unknown"))
+        .collect();
+    // worst first: bad, then warn, then unknown; heavier weight first within a tier.
+    failing.sort_by(|a, b| {
+        let sev = |s: &str| match s { "bad" => 0, "warn" => 1, _ => 2 };
+        sev(&a.status).cmp(&sev(&b.status)).then(b.weight.cmp(&a.weight))
+    });
+
+    let mut guide = Vec::new();
+    for c in failing {
+        if let Some((how, fix)) = mac_howto(&c.label) {
+            let severity = match c.status.as_str() {
+                "bad" => "high",
+                "warn" => "medium",
+                _ => "tip",
+            };
+            guide.push(crate::step(&c.label, severity, &c.detail, how, fix));
+        }
+    }
+
+    // Device-specific tip: Lockdown Mode exists on macOS 13 (Ventura)+.
+    if version_ge(&device.os_version, 13) {
+        guide.push(crate::step(
+            "Apple Lockdown Mode (high-risk users)",
+            "tip",
+            "If you're a journalist, activist, or could be targeted by spyware, Lockdown Mode drastically hardens Messages, web browsing, and more.",
+            "System Settings ▸ Privacy & Security ▸ Lockdown Mode ▸ Turn On (requires a restart). The Panic tab opens this pane for you.",
+            None,
+        ));
+    }
+    guide
 }
 
 fn check_meta(label: &str) -> (&'static str, Option<&'static str>) {
@@ -343,6 +414,22 @@ pub fn capabilities() -> Capabilities {
         bluetooth: blueutil_present(),
         firewall: true,
         settings_deeplink: true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn opsec_produces_device_and_guide() {
+        let r = super::opsec_score();
+        assert_eq!(r.device.platform, "macOS");
+        assert!(!r.device.os_version.is_empty(), "should detect a macOS version");
+        assert!(r.score <= 100, "score within range");
+        assert!(!r.guide.is_empty(), "should produce at least one recommendation");
+        for g in &r.guide {
+            assert!(!g.how.is_empty(), "every step has how-to text");
+            assert!(!g.title.is_empty());
+        }
     }
 }
 

@@ -187,32 +187,59 @@ el("scanBtn").addEventListener("click", async () => {
   busy("scanBtn", false);
 });
 
+const DEV_ICO = ICO('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 20h8M12 17v3"/>');
+
 function renderOpsec(rep) {
   const color = rep.score >= 80 ? "var(--good)" : rep.score >= 50 ? "var(--warn)" : "var(--bad)";
   el("scoreNum").textContent = rep.score;
   document.querySelector(".gauge").style.background =
     `conic-gradient(${color} ${rep.score * 3.6}deg, var(--panel-2) 0deg)`;
 
-  const groups = {};
-  for (const c of rep.checks) (groups[c.category] || (groups[c.category] = [])).push(c);
-
   let html = "";
-  for (const cat of CATS) {
-    const list = groups[cat];
-    if (!list) continue;
-    list.sort((a, b) => (SEV[a.status] ?? 9) - (SEV[b.status] ?? 9));
-    html += `<div class="check-cat">${esc(cat)}</div>`;
-    for (const c of list) {
-      const fix = c.fix ? `<button class="btn btn-ghost fix-btn" data-fix="${esc(c.fix)}">Fix</button>` : "";
-      html += `<div class="check">
-        <span class="check-dot ${c.status}"></span>
-        <div class="check-body">
-          <div class="check-label">${esc(c.label)}</div>
-          <div class="check-detail">${esc(c.detail)}</div>
-        </div>${fix}
+
+  // Device line — so the guidance is clearly "for your device".
+  if (rep.device) {
+    const parts = [rep.device.platform, rep.device.os_version, rep.device.model].filter(Boolean).join(" · ");
+    if (parts) html += `<div class="device-row">${DEV_ICO}<span>${esc(parts)}</span></div>`;
+  }
+
+  // Tailored guide — prioritized hardening steps.
+  if (rep.guide && rep.guide.length) {
+    html += `<div class="section-title">Recommended for your device</div>`;
+    for (const g of rep.guide) {
+      const fix = g.fix ? `<button class="btn btn-ghost fix-btn" data-fix="${esc(g.fix)}">Fix</button>` : "";
+      html += `<div class="guide-step sev-${esc(g.severity)}">
+        <div class="gs-head"><span class="gs-sev"></span>
+          <span class="gs-title">${esc(g.title)}</span>${fix}</div>
+        <div class="gs-why">${esc(g.why)}</div>
+        <div class="gs-how">${esc(g.how)}</div>
       </div>`;
     }
   }
+
+  // Detailed grouped checks — only when there are real probes (desktop), not the mobile stub.
+  if (rep.checks.length > 1) {
+    html += `<div class="section-title">Detailed checks</div>`;
+    const groups = {};
+    for (const c of rep.checks) (groups[c.category] || (groups[c.category] = [])).push(c);
+    for (const cat of CATS) {
+      const list = groups[cat];
+      if (!list) continue;
+      list.sort((a, b) => (SEV[a.status] ?? 9) - (SEV[b.status] ?? 9));
+      html += `<div class="check-cat">${esc(cat)}</div>`;
+      for (const c of list) {
+        const fix = c.fix ? `<button class="btn btn-ghost fix-btn" data-fix="${esc(c.fix)}">Fix</button>` : "";
+        html += `<div class="check">
+          <span class="check-dot ${c.status}"></span>
+          <div class="check-body">
+            <div class="check-label">${esc(c.label)}</div>
+            <div class="check-detail">${esc(c.detail)}</div>
+          </div>${fix}
+        </div>`;
+      }
+    }
+  }
+
   el("opsecChecks").innerHTML = html;
 
   el("opsecChecks").querySelectorAll(".fix-btn").forEach((b) =>

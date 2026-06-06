@@ -167,6 +167,39 @@ body {
 .score-lbl { position: relative; z-index: 1; font-size: 12px; color: var(--muted); }
 
 .checks { margin-top: 24px; display: flex; flex-direction: column; gap: 8px; }
+
+.device-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 22px;
+  color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.device-row svg { width: 16px; height: 16px; }
+
+.section-title {
+  font-size: 16px; font-weight: 800; margin: 22px 2px 10px;
+}
+
+.guide-step {
+  background: var(--panel); border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: 11px; padding: 13px 16px; margin-bottom: 9px;
+}
+.guide-step.sev-high { border-left-color: var(--bad); }
+.guide-step.sev-medium { border-left-color: var(--warn); }
+.guide-step.sev-low { border-left-color: var(--accent); }
+.guide-step.sev-tip { border-left-color: var(--accent-2); }
+.gs-head { display: flex; align-items: center; gap: 9px; }
+.gs-sev { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.sev-high .gs-sev { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+.sev-medium .gs-sev { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.sev-low .gs-sev { background: var(--accent); }
+.sev-tip .gs-sev { background: var(--accent-2); }
+.gs-title { font-weight: 700; font-size: 14px; flex: 1; }
+.gs-why { color: var(--muted); font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
+.gs-how {
+  font-size: 12.5px; margin-top: 8px; line-height: 1.5; color: var(--text);
+  background: var(--panel-2); border-radius: 8px; padding: 8px 11px;
+}
+
 .check-cat {
   font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
   color: var(--muted); margin: 16px 2px 4px;

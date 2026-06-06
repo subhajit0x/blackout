@@ -28,10 +28,33 @@ pub struct Check {
     pub fix: Option<String>,
 }
 
+/// What device/OS the software is running on — so guidance can be tailored.
+#[derive(Debug, Serialize)]
+pub struct DeviceInfo {
+    pub platform: String,
+    pub os_version: String,
+    pub model: String,
+}
+
+/// One tailored hardening recommendation: why it matters + exactly how to do it.
+#[derive(Debug, Serialize)]
+pub struct GuideStep {
+    pub title: String,
+    /// "high" | "medium" | "low" | "tip"
+    pub severity: String,
+    pub why: String,
+    pub how: String,
+    /// Reuses an `apply_fix` id when the app can do it for the user.
+    pub fix: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct OpsecReport {
     pub score: u32,
+    pub device: DeviceInfo,
     pub checks: Vec<Check>,
+    /// Prioritized, device-specific hardening steps.
+    pub guide: Vec<GuideStep>,
 }
 
 /// Result of a single LOCKDOWN/PANIC action.
@@ -74,6 +97,22 @@ impl Check {
     pub(crate) fn cat(mut self, category: &str) -> Self {
         self.category = category.into();
         self
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) fn device(platform: &str, os_version: &str, model: &str) -> DeviceInfo {
+    DeviceInfo { platform: platform.into(), os_version: os_version.into(), model: model.into() }
+}
+
+#[allow(dead_code)]
+pub(crate) fn step(title: &str, severity: &str, why: &str, how: &str, fix: Option<&str>) -> GuideStep {
+    GuideStep {
+        title: title.into(),
+        severity: severity.into(),
+        why: why.into(),
+        how: how.into(),
+        fix: fix.map(Into::into),
     }
 }
 #[allow(dead_code)] // used by some platform backends, not others
