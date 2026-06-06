@@ -131,6 +131,11 @@ mod desktop {
         let run2 = running.clone();
         let out2 = out_dir.clone();
         std::thread::spawn(move || {
+            // How many times we'll re-check a still-empty file before concluding
+            // it's genuinely empty (not mid-write) and giving up — avoids an
+            // empty dropped file looping in the queue forever.
+            const MAX_RETRIES: u8 = 8;
+            let mut attempts: HashMap<PathBuf, u8> = HashMap::new();
             while run2.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(120));
                 let ready: Vec<PathBuf> = {
@@ -148,13 +153,21 @@ mod desktop {
                 };
                 for p in ready {
                     if !p.is_file() {
+                        attempts.remove(&p);
                         continue;
                     }
-                    // Still empty/being written? Re-queue and wait.
+                    // Still empty/being written? Re-queue a few times, then give up.
                     if std::fs::metadata(&p).map(|m| m.len() == 0).unwrap_or(true) {
-                        pending.lock().unwrap().insert(p, Instant::now());
+                        let n = attempts.entry(p.clone()).or_insert(0);
+                        *n += 1;
+                        if *n <= MAX_RETRIES {
+                            pending.lock().unwrap().insert(p, Instant::now());
+                        } else {
+                            attempts.remove(&p);
+                        }
                         continue;
                     }
+                    attempts.remove(&p);
                     done.lock().unwrap().insert(p.clone());
                     let report = clean_file(&p, &out2, ffmpeg);
                     let _ = app.emit(

@@ -366,13 +366,14 @@ fn pdf_findings(bytes: &[u8]) -> Vec<Finding> {
 }
 
 /// PDF dates look like "D:20240122072100Z" — show the readable part.
+/// Only reformats when the value really starts with 8 date digits; otherwise it
+/// is returned unchanged. Slicing the all-ASCII `digits` is char-boundary safe
+/// (the raw string may be UTF-16-derived, where byte slicing could panic).
 fn clean_pdf_date(s: &str) -> String {
     let d = s.strip_prefix("D:").unwrap_or(s);
-    if d.len() >= 8 {
-        let (y, rest) = d.split_at(4);
-        let (mo, rest) = rest.split_at(2);
-        let (da, _) = rest.split_at(2);
-        return format!("{y}-{mo}-{da}");
+    let digits: String = d.chars().take_while(|c| c.is_ascii_digit()).take(8).collect();
+    if digits.len() == 8 {
+        return format!("{}-{}-{}", &digits[0..4], &digits[4..6], &digits[6..8]);
     }
     s.to_string()
 }
@@ -423,11 +424,59 @@ fn office_findings(bytes: &[u8]) -> Vec<Finding> {
 }
 
 /// Tiny tag-text extractor (avoids pulling a full XML parser for a few fields).
+/// Handles tags that carry attributes, e.g. `<dcterms:created xsi:type="...">`.
 fn xml_text(xml: &str, tag: &str) -> Option<String> {
-    let open = format!("<{tag}>");
+    let open = format!("<{tag}");
+    let s = xml.find(&open)?;
+    // The char right after the tag name must end it ('>') or start an attribute
+    // (whitespace) — otherwise we'd match a longer tag that shares this prefix.
+    let after = xml[s + open.len()..].chars().next()?;
+    if after != '>' && after != '/' && !after.is_whitespace() {
+        return None;
+    }
+    let start = xml[s..].find('>')? + s + 1;
     let close = format!("</{tag}>");
-    let start = xml.find(&open)? + open.len();
     let end = xml[start..].find(&close)? + start;
     let val = xml[start..end].trim();
     if val.is_empty() { None } else { Some(val.to_string()) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{clean_pdf_date, xml_text};
+
+    #[test]
+    fn pdf_date_formats_only_real_dates() {
+        assert_eq!(clean_pdf_date("D:20240122072100Z"), "2024-01-22");
+        assert_eq!(clean_pdf_date("20240122"), "2024-01-22");
+    }
+
+    #[test]
+    fn pdf_date_leaves_text_untouched() {
+        // Regression: text fields were being chopped like dates ("Subhajit" -> "Subh-aj-it").
+        assert_eq!(clean_pdf_date("Subhajit Secret"), "Subhajit Secret");
+        assert_eq!(clean_pdf_date("Confidential"), "Confidential");
+        assert_eq!(clean_pdf_date("123"), "123"); // too few digits
+    }
+
+    #[test]
+    fn pdf_date_no_panic_on_multibyte() {
+        // Must not panic on non-ASCII (raw PDF strings can decode to multi-byte chars).
+        let _ = clean_pdf_date("Café\u{fffd}\u{fffd}date");
+        let _ = clean_pdf_date("\u{fffd}\u{fffd}\u{fffd}\u{fffd}");
+    }
+
+    #[test]
+    fn xml_text_handles_attributes() {
+        // Regression: office created/modified dates carry an xsi:type attribute.
+        let xml = r#"<dcterms:created xsi:type="dcterms:W3CDTF">2024-01-22T07:21:00Z</dcterms:created>"#;
+        assert_eq!(xml_text(xml, "dcterms:created").as_deref(), Some("2024-01-22T07:21:00Z"));
+    }
+
+    #[test]
+    fn xml_text_plain_and_prefix_safety() {
+        assert_eq!(xml_text("<dc:creator>Jane</dc:creator>", "dc:creator").as_deref(), Some("Jane"));
+        // Must not match a longer tag sharing the prefix.
+        assert_eq!(xml_text("<dc:creatorTool>X</dc:creatorTool>", "dc:creator"), None);
+    }
 }
