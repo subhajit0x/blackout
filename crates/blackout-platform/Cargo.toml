@@ -1,0 +1,11 @@
+[package]
+name = "blackout-platform"
+description = "BLACKOUT platform integration (OPSEC, LOCKDOWN, PANIC) — one portable API, cfg-gated per OS."
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+# Pure-Rust, no C dependencies → cross-compiles to every target (incl. iOS/Android)
+# without a C toolchain. Per-OS behaviour lives behind cfg gates, not separate crates.
+[dependencies]
+serde = { version = "1", features = ["derive"] }

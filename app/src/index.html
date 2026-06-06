@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>BLACKOUT</title>
+  </head>
+  <body>
+    <div class="app">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/>
+              <path d="M8.5 12.5 11 15l4.5-5"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-name">BLACKOUT</div>
+            <div class="brand-tag">One Tap. Less Exposure.</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item active" data-view="clean">
+            <span class="nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+            </span> Clean
+          </button>
+          <button class="nav-item" data-view="opsec">
+            <span class="nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M12 13l4-3"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/></svg>
+            </span> OPSEC Score
+          </button>
+          <button class="nav-item" data-view="lockdown">
+            <span class="nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            </span> Lockdown
+          </button>
+          <button class="nav-item" data-view="panic">
+            <span class="nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4"/><path d="M12 17h.01"/></svg>
+            </span> Panic
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span class="dot-local"></span>
+          100% local · no network · no telemetry
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main">
+        <!-- CLEAN -->
+        <section class="view active" id="view-clean">
+          <header class="view-head">
+            <h1>Clean</h1>
+            <p>Strip hidden metadata before you share. Originals are never changed.</p>
+          </header>
+
+          <div id="dropzone" class="dropzone">
+            <div class="dz-inner">
+              <div class="dz-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              </div>
+              <div class="dz-title">Drop files here</div>
+              <div class="dz-sub">photos · videos · documents · PDFs · audio</div>
+              <button id="browseBtn" class="btn btn-ghost">Browse…</button>
+            </div>
+          </div>
+
+          <div id="fileBar" class="filebar hidden">
+            <span id="fileCount">0 files selected</span>
+            <div class="spacer"></div>
+            <button id="inspectBtn" class="btn btn-ghost">Inspect</button>
+            <button id="cleanBtn" class="btn btn-primary">Clean</button>
+            <button id="clearBtn" class="btn btn-text">Clear</button>
+          </div>
+
+          <div id="cleanResults" class="results"></div>
+
+          <div class="watch">
+            <div class="watch-row">
+              <div>
+                <div class="watch-title">Auto-clean a folder</div>
+                <div class="watch-sub" id="watchStatus">Off — pick a folder (e.g. Screenshots) to auto-strip every new file.</div>
+              </div>
+              <div class="spacer"></div>
+              <button id="watchBtn" class="btn btn-ghost">Choose folder…</button>
+              <button id="watchStop" class="btn btn-text hidden">Stop</button>
+            </div>
+            <div id="watchLog" class="watch-log"></div>
+          </div>
+        </section>
+
+        <!-- OPSEC -->
+        <section class="view" id="view-opsec">
+          <header class="view-head">
+            <h1>OPSEC Score</h1>
+            <p>How exposed is this Mac right now? Read-only checks, in plain language.</p>
+          </header>
+
+          <div class="opsec-top">
+            <div class="gauge">
+              <div id="scoreNum" class="score-num">—</div>
+              <div class="score-lbl">/ 100</div>
+            </div>
+            <button id="scanBtn" class="btn btn-primary">Run scan</button>
+          </div>
+
+          <div id="opsecChecks" class="checks"></div>
+        </section>
+
+        <!-- LOCKDOWN -->
+        <section class="view" id="view-lockdown">
+          <header class="view-head">
+            <h1>Lockdown</h1>
+            <p>Reduce device exposure. Actions macOS blocks are clearly marked.</p>
+          </header>
+
+          <div class="levels">
+            <button class="level" data-level="1">
+              <div class="level-n">1</div><div class="level-name">Public</div>
+              <div class="level-desc">Turn off Bluetooth</div>
+            </button>
+            <button class="level" data-level="2">
+              <div class="level-n">2</div><div class="level-name">Privacy</div>
+              <div class="level-desc">Bluetooth off · clipboard wiped</div>
+            </button>
+            <button class="level" data-level="3">
+              <div class="level-n">3</div><div class="level-name">Blackout</div>
+              <div class="level-desc">Wi-Fi + Bluetooth off · clipboard wiped</div>
+            </button>
+            <button class="level" data-level="4">
+              <div class="level-n">4</div><div class="level-name">Ghost</div>
+              <div class="level-desc">Block all incoming · AirDrop off · radios off · lock (asks password)</div>
+            </button>
+          </div>
+
+          <div class="hardening">
+            <h2 class="sub">Real macOS hardening</h2>
+            <p class="sub-note">Jump straight to a system toggle, or apply real changes with one password prompt.</p>
+            <div class="deeplinks">
+              <button class="btn btn-ghost" data-settings="lockdown">Apple Lockdown Mode ↗</button>
+              <button class="btn btn-ghost" data-settings="firewall">Firewall ↗</button>
+              <button class="btn btn-ghost" data-settings="filevault">FileVault ↗</button>
+              <button class="btn btn-ghost" data-settings="privacy">Privacy ↗</button>
+            </div>
+            <button id="hardenBtn" class="btn btn-primary harden">🛡 Harden now — Firewall + stealth (asks for password)</button>
+          </div>
+
+          <div id="lockdownResults" class="results"></div>
+        </section>
+
+        <!-- PANIC -->
+        <section class="view" id="view-panic">
+          <header class="view-head">
+            <h1>Panic</h1>
+            <p>One tap, complete isolation: wipe clipboard, kill Wi-Fi/Bluetooth, turn AirDrop off, open Apple Lockdown Mode, lock the screen.</p>
+          </header>
+
+          <div class="panic-wrap">
+            <button id="panicBtn" class="panic-btn">PANIC</button>
+            <div class="panic-note">For border crossings, inspections, incidents.</div>
+          </div>
+
+          <div id="panicResults" class="results"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

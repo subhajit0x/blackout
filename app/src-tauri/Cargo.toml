@@ -1,0 +1,37 @@
+# The universal BLACKOUT app (desktop + mobile) is its own workspace so the
+# parent monorepo's release profile doesn't apply to the Tauri build.
+[workspace]
+
+[package]
+name = "blackout-app"
+version = "0.1.0"
+description = "BLACKOUT — privacy in one tap. Universal app (macOS, Windows, Linux, iOS, Android)."
+authors = ["BLACKOUT contributors"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "blackout_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+blackout-core = { path = "../../crates/blackout-core" }
+blackout-platform = { path = "../../crates/blackout-platform" }
+tauri-plugin-dialog = "2"
+dirs = "5"
+
+# Folder-watching is a desktop-only feature; excluded from mobile builds.
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
+notify = "6"
+

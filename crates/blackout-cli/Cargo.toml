@@ -1,0 +1,16 @@
+[package]
+name = "blackout-cli"
+description = "BLACKOUT command-line front-end. One tap. Less exposure."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "blackout"
+path = "src/main.rs"
+
+[dependencies]
+blackout-core = { path = "../blackout-core" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"

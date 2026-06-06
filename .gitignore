@@ -1,0 +1,28 @@
+# Rust
+/target
+**/target
+**/*.rs.bk
+
+# Node
+**/node_modules
+**/dist
+**/build
+
+# Tauri generated mobile/desktop projects (regenerate with `tauri android/ios init`)
+/app/src-tauri/gen
+/app/src-tauri/target
+
+# Signing material — NEVER commit (build with your own; see docs)
+*.keystore
+*.jks
+keystore.properties
+*.p12
+
+# OS / editor
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Test fixtures / local
+/fixtures
