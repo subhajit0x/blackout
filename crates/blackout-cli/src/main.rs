@@ -60,7 +60,17 @@ fn main() {
 }
 
 fn run_clean(paths: &[PathBuf], out: &Path, json: bool) -> i32 {
-    let files = collect_files(paths);
+    let mut files = collect_files(paths);
+    // Don't re-process our own previous output when it lives inside a scanned
+    // directory (e.g. `blackout clean .` run twice) — that would clean already
+    // cleaned copies. Only filters once the output dir actually exists.
+    if let Ok(out_canon) = std::fs::canonicalize(out) {
+        files.retain(|f| {
+            std::fs::canonicalize(f)
+                .map(|fc| !fc.starts_with(&out_canon))
+                .unwrap_or(true)
+        });
+    }
     if files.is_empty() {
         eprintln!("No files found to clean.");
         return 1;
