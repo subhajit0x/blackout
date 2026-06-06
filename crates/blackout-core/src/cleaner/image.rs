@@ -285,6 +285,29 @@ mod tests {
         assert_eq!(removed.len(), 1);
     }
 
+    // A real 2x2 lossless WebP carrying an XMP packet with a "SECRET" author,
+    // built with Pillow. Guards the fix for the WebP XMP leak (set_exif alone
+    // does not remove the XMP chunk).
+    const WEBP_WITH_XMP: &[u8] = &[
+        82, 73, 70, 70, 148, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56, 88, 10, 0, 0, 0, 4, 0, 0, 0, 1,
+        0, 0, 1, 0, 0, 86, 80, 56, 76, 20, 0, 0, 0, 47, 1, 64, 0, 0, 7, 80, 129, 84, 8, 32, 0, 10,
+        154, 254, 199, 136, 136, 254, 7, 88, 77, 80, 32, 90, 0, 0, 0, 60, 63, 120, 112, 97, 99,
+        107, 101, 116, 63, 62, 60, 120, 58, 120, 109, 112, 109, 101, 116, 97, 32, 120, 109, 108,
+        110, 115, 58, 120, 61, 34, 97, 100, 111, 98, 101, 58, 110, 115, 58, 109, 101, 116, 97, 47,
+        34, 62, 60, 100, 99, 58, 99, 114, 101, 97, 116, 111, 114, 62, 83, 69, 67, 82, 69, 84, 60,
+        47, 100, 99, 58, 99, 114, 101, 97, 116, 111, 114, 62, 60, 47, 120, 58, 120, 109, 112, 109,
+        101, 116, 97, 62,
+    ];
+
+    #[test]
+    fn webp_xmp_packet_is_stripped() {
+        assert!(WEBP_WITH_XMP.windows(6).any(|w| w == b"SECRET"), "fixture sanity: XMP present");
+        let (out, removed) = clean_image(WEBP_WITH_XMP.to_vec(), "webp").unwrap();
+        assert!(!out.windows(6).any(|w| w == b"SECRET"), "XMP author must be gone");
+        assert!(!out.windows(4).any(|w| w == b"XMP "), "XMP chunk must be removed");
+        assert!(removed.iter().any(|r| r.contains("XMP")), "must report XMP removal");
+    }
+
     #[test]
     fn tiff_errors_instead_of_falsely_reporting_clean() {
         // img-parts can't strip TIFF metadata. The cleaner must surface that as an
