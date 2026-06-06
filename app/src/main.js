@@ -6,14 +6,28 @@ const event = window.__TAURI__.event;
 const base = (p) => (p || "").split("/").pop();
 const el = (id) => document.getElementById(id);
 
+// ---------- native-app feel ----------
+// No browser right-click menu, no image/text drag, no accidental pinch-zoom.
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("dragstart", (e) => e.preventDefault());
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
 // ---------- view switching ----------
-document.querySelectorAll(".nav-item").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-    btn.classList.add("active");
-    el("view-" + btn.dataset.view).classList.add("active");
-  });
+const VIEWS = ["clean", "opsec", "lockdown", "panic"];
+function showView(name) {
+  document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+  el("view-" + name).classList.add("active");
+}
+document.querySelectorAll(".nav-item").forEach((btn) =>
+  btn.addEventListener("click", () => showView(btn.dataset.view)));
+
+// Desktop keyboard shortcuts: Cmd/Ctrl + 1..4 switch tabs.
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "4") {
+    e.preventDefault();
+    showView(VIEWS[parseInt(e.key, 10) - 1]);
+  }
 });
 
 // ================= CLEAN =================
