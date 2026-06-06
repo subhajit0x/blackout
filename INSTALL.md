@@ -68,12 +68,24 @@ If `ios dev` can't sign:
 ## 💻 Desktop — macOS / Windows / Linux
 
 **Prebuilt:** download the installer for your OS from [Releases](../../releases)
-(`.dmg` on macOS, `.msi`/`.exe` on Windows, `.AppImage`/`.deb` on Linux).
+(`.dmg` on macOS; Windows/Linux: build from source for now).
 
-> macOS note: the prebuilt `.dmg` is signed for development, not notarized, so on
-> a Mac that isn't the build machine, Gatekeeper shows a warning. Right-click the
-> app → **Open** → **Open** the first time. (Notarization needs a paid Apple
-> Developer ID — see the README.) Or build it yourself:
+**macOS — first launch (one time).** The app is code-signed but not *notarized*
+(notarization needs a paid Apple Developer account), so macOS asks you to confirm
+the first time. Pick whichever is easiest:
+
+1. Open `BLACKOUT_0.1.0_aarch64.dmg`, drag **BLACKOUT** to **Applications**.
+2. **Easiest:** open Applications, **right-click BLACKOUT → Open → Open**.
+3. If macOS still blocks it (Sonoma/Sequoia): **System Settings → Privacy &
+   Security**, scroll down to *"BLACKOUT was blocked"* → **Open Anyway** → enter
+   your password.
+4. Terminal one-liner that skips the prompt entirely (the app is signed, so this
+   is safe):
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/BLACKOUT.app && open /Applications/BLACKOUT.app
+   ```
+
+Or build it yourself (no prompts at all):
 
 ```bash
 git clone <this-repo> && cd blackout/app

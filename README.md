@@ -30,6 +30,24 @@ The honesty rule: anything an OS won't let an app do (Apple Lockdown Mode, globa
 camera/mic disable, iOS radio toggles) is **clearly labelled "not available"** or
 deep-links you to the system toggle — never faked.
 
+### What actually works on each platform
+
+| | macOS | Windows / Linux | Android | iOS |
+|---|---|---|---|---|
+| **CLEAN** (metadata removal) | ✅ full | ✅ full | ✅ full | ✅ full |
+| **OPSEC** score (live checks) | ✅ 12 checks + fixes | 🟡 guide only | 🟡 guide only | 🟡 guide only |
+| **OPSEC** device guide | ✅ | ✅ | ✅ | ✅ |
+| **LOCKDOWN / PANIC** actions | ✅ real (radios, AirDrop, firewall, lock) | 🟡 planned | 🟡 guide only* | 🟡 guide only* |
+| Finder right-click clean | ✅ | — | — | — |
+| Auto-clean watched folder | ✅ | ✅ | — | — |
+
+\* Android/iOS sandbox apps from silently toggling radios — the **OPSEC guide tells
+you exactly how to do it in Settings** for your device. A native Android plugin
+(opens Wi-Fi/Bluetooth/Airplane panels + clears clipboard) is the planned next step.
+
+So: **metadata cleaning and the device-tailored OPSEC guide work everywhere**;
+full live hardening is a macOS feature today and rolls out per-platform.
+
 ---
 
 ## Repository layout (designed for portability)
