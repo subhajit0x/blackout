@@ -90,7 +90,9 @@ mod desktop {
     /// A new file fires several events while it's still being written. We record
     /// the time of the *last* event per path and only clean once it has been
     /// quiet (write finished) for SETTLE — so we never read a half-written file.
-    const SETTLE: Duration = Duration::from_millis(300);
+    /// Kept short so cleaning feels instant; the size>0 check plus bounded
+    /// retries below are the safety net if a write hasn't flushed yet.
+    const SETTLE: Duration = Duration::from_millis(200);
 
     pub fn spawn(
         folder: PathBuf,
@@ -137,7 +139,7 @@ mod desktop {
             const MAX_RETRIES: u8 = 8;
             let mut attempts: HashMap<PathBuf, u8> = HashMap::new();
             while run2.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(120));
+                std::thread::sleep(Duration::from_millis(60));
                 let ready: Vec<PathBuf> = {
                     let mut pend = pending.lock().unwrap();
                     let now = Instant::now();
