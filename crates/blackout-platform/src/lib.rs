@@ -139,7 +139,7 @@ pub(crate) fn tally(checks: &[Check]) -> u32 {
             _ => 0,
         };
     }
-    if total == 0 { 0 } else { (earned * 100) / total }
+    (earned * 100).checked_div(total).unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------

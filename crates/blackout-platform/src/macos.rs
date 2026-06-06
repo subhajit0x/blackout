@@ -417,22 +417,6 @@ pub fn capabilities() -> Capabilities {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn opsec_produces_device_and_guide() {
-        let r = super::opsec_score();
-        assert_eq!(r.device.platform, "macOS");
-        assert!(!r.device.os_version.is_empty(), "should detect a macOS version");
-        assert!(r.score <= 100, "score within range");
-        assert!(!r.guide.is_empty(), "should produce at least one recommendation");
-        for g in &r.guide {
-            assert!(!g.how.is_empty(), "every step has how-to text");
-            assert!(!g.title.is_empty());
-        }
-    }
-}
-
 pub fn open_settings(pane: &str) -> bool {
     let url = match pane {
         "filevault" => "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?FileVault",
@@ -512,4 +496,20 @@ pub fn harden() -> Vec<ActionResult> {
     let _ = Command::new("defaults").args(["write", "com.apple.screensaver", "askForPasswordDelay", "-int", "0"]).status();
     results.push(done("Lock password required", "A password is now required immediately after sleep or screensaver."));
     results
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn opsec_produces_device_and_guide() {
+        let r = super::opsec_score();
+        assert_eq!(r.device.platform, "macOS");
+        assert!(!r.device.os_version.is_empty(), "should detect a macOS version");
+        assert!(r.score <= 100, "score within range");
+        assert!(!r.guide.is_empty(), "should produce at least one recommendation");
+        for g in &r.guide {
+            assert!(!g.how.is_empty(), "every step has how-to text");
+            assert!(!g.title.is_empty());
+        }
+    }
 }
