@@ -15,7 +15,8 @@
   color-scheme: dark;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
 html, body { height: 100%; }
 body {
   background:
@@ -270,3 +271,82 @@ body {
 
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ============================================================
+   MOBILE / PHONE — bottom tab bar, fluid layout, safe areas
+   ============================================================ */
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { flex-direction: column; min-height: 100vh; }
+
+  /* Sidebar becomes a fixed bottom tab bar */
+  .sidebar {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+    width: 100%; height: auto; flex-direction: row;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    border-right: none; border-top: 1px solid var(--border);
+    background: rgba(13, 19, 34, 0.96);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .brand, .sidebar-foot { display: none; }
+  .nav { flex-direction: row; width: 100%; gap: 4px; margin: 0; }
+  .nav-item {
+    flex: 1; flex-direction: column; gap: 4px;
+    padding: 7px 2px; font-size: 10px; font-weight: 600;
+    border-radius: 12px; text-align: center; white-space: nowrap;
+    justify-content: center;
+  }
+  .nav-item.active {
+    background: rgba(59, 130, 246, 0.16); color: var(--accent);
+    box-shadow: none;
+  }
+  .nav-ico { width: 22px; height: 22px; opacity: 1; }
+  .nav-ico svg { width: 22px; height: 22px; }
+
+  /* Main content: full width, room for the notch + bottom bar */
+  .main {
+    width: 100%; flex: 1;
+    padding: calc(20px + env(safe-area-inset-top)) 16px 96px;
+    overflow: visible;
+  }
+
+  .view-head h1 { font-size: 23px; }
+  .view-head p { font-size: 13px; }
+
+  /* Clean — folder-watching is desktop-only, hide on phones */
+  .watch { display: none; }
+  .dropzone { padding: 34px 18px; margin-top: 18px; }
+  .dz-icon { width: 52px; height: 52px; }
+  .filebar { flex-wrap: wrap; gap: 8px; }
+  .card-head { flex-wrap: wrap; }
+  .finding { flex-wrap: wrap; }
+  .finding .f-label { min-width: 0; }
+  .finding .maplink { margin-left: 0; }
+
+  /* OPSEC */
+  .opsec-top { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .gauge { width: 116px; height: 116px; }
+  .score-num { font-size: 34px; }
+  .scanBtn, #scanBtn { width: 100%; }
+  .check { padding: 12px 14px; }
+
+  /* Lockdown */
+  .levels { grid-template-columns: 1fr; gap: 12px; }
+  .hardening, .watch { padding: 16px; }
+  .deeplinks .btn { flex: 1; }
+
+  /* Panic */
+  .panic-wrap { margin-top: 36px; }
+  .panic-btn { width: 168px; height: 168px; font-size: 26px; }
+
+  /* Buttons are easy to tap */
+  .btn { padding: 12px 18px; }
+}
+
+/* Extra-small phones */
+@media (max-width: 380px) {
+  .nav-item { font-size: 9px; }
+  .view-head h1 { font-size: 21px; }
+  .panic-btn { width: 150px; height: 150px; }
+}

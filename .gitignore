@@ -26,3 +26,6 @@ keystore.properties
 
 # Test fixtures / local
 /fixtures
+
+# Local preview/tooling
+.claude/
