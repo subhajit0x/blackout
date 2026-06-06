@@ -22,8 +22,14 @@ pub fn clean_image(bytes: Vec<u8>, ext: &str) -> Result<(Vec<u8>, Vec<String>)> 
     match ext {
         "png" => clean_png(bytes),
         "jpg" | "jpeg" => clean_jpeg(bytes),
-        // webp / tif / tiff
-        _ => clean_via_img_parts(bytes),
+        "webp" => clean_via_img_parts(bytes),
+        // tif/tiff are categorized as images but img-parts can't strip them.
+        // Fail loudly: never pass a file through as "clean" while it may still
+        // carry EXIF/GPS — a false "all clear" is the worst outcome here.
+        other => bail!(
+            "{other} metadata removal isn't supported yet — the file was left unchanged \
+             rather than reported clean while still carrying metadata"
+        ),
     }
 }
 
@@ -122,8 +128,8 @@ fn clean_via_img_parts(bytes: Vec<u8>) -> Result<(Vec<u8>, Vec<String>)> {
     let parsed = DynImage::from_bytes(Bytes::from(bytes.clone()))?;
     let mut img = match parsed {
         Some(img) => img,
-        // Not a format img-parts recognizes; pass through untouched rather than risk corruption.
-        None => return Ok((bytes, removed)),
+        // Recognized extension but not a parseable image — don't claim success.
+        None => bail!("file has an image extension but isn't a readable image; left unchanged"),
     };
 
     if img.exif().is_some() {
@@ -136,6 +142,15 @@ fn clean_via_img_parts(bytes: Vec<u8>) -> Result<(Vec<u8>, Vec<String>)> {
     if img.icc_profile().is_some() {
         removed.push("ICC colour profile".into());
         img.set_icc_profile(None);
+    }
+    // WebP can also carry an XMP packet that the EXIF/ICC API doesn't touch — it
+    // holds author, copyright, location and edit history. Strip it explicitly.
+    if let DynImage::WebP(ref mut webp) = img {
+        use img_parts::webp::CHUNK_XMP;
+        if webp.has_chunk(CHUNK_XMP) {
+            removed.push("XMP metadata (author, copyright, location, edit history)".into());
+            webp.remove_chunks_by_id(CHUNK_XMP);
+        }
     }
 
     let mut out = Vec::with_capacity(bytes.len());
@@ -268,5 +283,14 @@ mod tests {
         assert!(out.windows(4).any(|w| w == b"IDAT"), "image data preserved");
         assert!(out.windows(4).any(|w| w == b"IHDR"), "header preserved");
         assert_eq!(removed.len(), 1);
+    }
+
+    #[test]
+    fn tiff_errors_instead_of_falsely_reporting_clean() {
+        // img-parts can't strip TIFF metadata. The cleaner must surface that as an
+        // error, never silently pass the file through as if it had been cleaned —
+        // a false "all clear" on a file that still carries EXIF/GPS is unacceptable.
+        let little_endian_tiff_header = vec![0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00];
+        assert!(clean_image(little_endian_tiff_header, "tiff").is_err());
     }
 }
