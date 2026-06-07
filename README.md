@@ -35,7 +35,7 @@ deep-links you to the system toggle — never faked.
 | | macOS | Windows / Linux | Android | iOS |
 |---|---|---|---|---|
 | **CLEAN** (metadata removal) | ✅ full | ✅ full | ✅ full | ✅ full |
-| **OPSEC** score (live checks) | ✅ 12 checks + fixes | 🟡 guide only | 🟡 guide only | 🟡 guide only |
+| **OPSEC** score (live checks) | ✅ 13 checks + fixes | 🟡 guide only | 🟡 guide only | 🟡 guide only |
 | **OPSEC** device guide | ✅ | ✅ | ✅ | ✅ |
 | **LOCKDOWN / PANIC** actions | ✅ real (radios, AirDrop, firewall, lock) | 🟡 planned | 🟡 guide only* | 🟡 guide only* |
 | Finder right-click clean | ✅ | — | — | — |

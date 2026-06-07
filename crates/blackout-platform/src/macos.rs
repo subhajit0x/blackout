@@ -524,6 +524,13 @@ mod tests {
     }
 
     #[test]
+    fn check_count_matches_readme() {
+        // README advertises "13 checks". If you add/remove a check, update the
+        // README's macOS OPSEC count to match, then bump this number.
+        assert_eq!(super::opsec_score().checks.len(), 13);
+    }
+
+    #[test]
     fn version_ge_parses_major_component() {
         assert!(super::version_ge("13.4.1", 13));
         assert!(super::version_ge("14.0", 13));
