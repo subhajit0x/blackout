@@ -258,12 +258,22 @@ fn app_permission_check() -> crate::Check {
             };
             let cam = count("kTCCServiceCamera");
             let mic = count("kTCCServiceMicrophone");
-            check(
-                "App permissions",
-                "warn",
-                &format!("{cam} app(s) can use your camera and {mic} your microphone. Review them in System Settings ▸ Privacy."),
-                0,
-            )
+            // Nothing to review is genuinely good — don't warn about 0 apps.
+            if cam == "0" && mic == "0" {
+                check(
+                    "App permissions",
+                    "good",
+                    "No third-party apps have been granted camera or microphone access.",
+                    0,
+                )
+            } else {
+                check(
+                    "App permissions",
+                    "warn",
+                    &format!("{cam} app(s) can use your camera and {mic} your microphone. Review them in System Settings ▸ Privacy."),
+                    0,
+                )
+            }
         }
         _ => check(
             "App permissions",
@@ -510,6 +520,35 @@ mod tests {
         for g in &r.guide {
             assert!(!g.how.is_empty(), "every step has how-to text");
             assert!(!g.title.is_empty());
+        }
+    }
+
+    #[test]
+    fn version_ge_parses_major_component() {
+        assert!(super::version_ge("13.4.1", 13));
+        assert!(super::version_ge("14.0", 13));
+        assert!(super::version_ge("26", 13)); // future major
+        assert!(!super::version_ge("12.7.4", 13));
+        assert!(!super::version_ge("", 13)); // unknown version must not over-claim
+        assert!(!super::version_ge("notanumber", 13));
+    }
+
+    #[test]
+    fn every_check_label_has_howto_and_meta() {
+        // A failing check with no how-to silently drops out of the guide, and a
+        // missing meta entry mis-categorizes it. Keep the three tables in sync.
+        for c in &super::opsec_score().checks {
+            assert!(
+                super::mac_howto(&c.label).is_some(),
+                "no how-to for check label '{}'",
+                c.label
+            );
+            assert_ne!(
+                super::check_meta(&c.label).0,
+                "Other",
+                "no UI category for check label '{}'",
+                c.label
+            );
         }
     }
 }
