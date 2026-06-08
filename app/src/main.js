@@ -126,6 +126,17 @@ function setFiles(paths) {
 }
 
 el("browseBtn").addEventListener("click", async () => {
+  // Android has no real file paths (content:// URIs) — the backend picks, reads,
+  // cleans and saves to Downloads in one step. Desktop uses the file dialog.
+  if (PLAT === "android") {
+    busy("browseBtn", true);
+    try {
+      const res = await invoke("clean_picked");
+      if (res && res.reports && res.reports.length) renderClean(res);
+    } catch (_) { /* never surface a raw error */ }
+    busy("browseBtn", false);
+    return;
+  }
   const picked = await dialog.open({
     multiple: true,
     filters: [{ name: "Cleanable files", extensions: CLEAN_EXTS }],
@@ -196,9 +207,12 @@ function reportCard(r, statusLabel, pillClass, items) {
 function renderClean(res) {
   const out = el("cleanResults");
   const parts = [];
+  const loc = PLAT === "android"
+    ? `<span class="dim">Saved to ${esc(res.out_dir)}</span>`
+    : `<a class="reveal" data-path="${esc(res.out_dir)}">Reveal output folder ↗</a>`;
   parts.push(`<div class="banner ok">
     ✓ ${res.cleaned} cleaned · ${res.copied} copied · ${res.skipped} skipped · ${res.errored} errored
-    <a class="reveal" data-path="${esc(res.out_dir)}">Reveal output folder ↗</a>
+    ${loc}
   </div>`);
   if (PLAT === "macos" && !res.ffmpeg && res.skipped > 0) {
     parts.push(`<div class="banner info">ℹ Install ffmpeg (brew install ffmpeg) to clean video / HEIC / M4A.</div>`);

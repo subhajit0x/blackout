@@ -47,14 +47,21 @@ fn apply_fix(id: String) -> Vec<bp::ActionResult> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    // Android: lets us read user-picked content:// URIs and save to Downloads.
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_android_fs::init());
+
+    builder
         .manage(watch::WatchState::default())
         .invoke_handler(tauri::generate_handler![
             // CLEAN
             clean::inspect_files,
             clean::clean_files,
+            clean::clean_picked,
             clean::reveal_path,
             // OPSEC / LOCKDOWN / PANIC (portable, cfg-gated platform layer)
             opsec_score,

@@ -35,3 +35,8 @@ dirs = "5"
 [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 notify = "6"
 
+# Android can't read a user-picked content:// URI via std::fs; this plugin reads
+# the bytes and saves cleaned copies to public Downloads.
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-android-fs = "28"
+
