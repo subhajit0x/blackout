@@ -41,7 +41,10 @@ class BlackoutDroidPlugin(private val activity: Activity) : Plugin(activity) {
         res.put("airplaneOn", readGlobalInt(ctx, Settings.Global.AIRPLANE_MODE_ON) == 1)
         res.put("screenLockSet", isDeviceSecure(ctx))
         res.put("developerOptions", readGlobalInt(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED) == 1)
+        res.put("usbDebugging", readGlobalInt(ctx, Settings.Global.ADB_ENABLED) == 1)
         res.put("locationOn", isLocationOn(ctx))
+        res.put("nfcOn", isNfcOn(ctx))
+        res.put("patchAgeDays", securityPatchAgeDays())
         invoke.resolve(res)
     }
 
@@ -57,6 +60,7 @@ class BlackoutDroidPlugin(private val activity: Activity) : Plugin(activity) {
                 "location" -> Settings.ACTION_LOCATION_SOURCE_SETTINGS
                 "security" -> Settings.ACTION_SECURITY_SETTINGS
                 "developer" -> Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS
+                "nfc" -> Settings.ACTION_NFC_SETTINGS
                 "permissions", "privacy" -> Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                 else -> Settings.ACTION_SETTINGS
             }
@@ -151,6 +155,27 @@ class BlackoutDroidPlugin(private val activity: Activity) : Plugin(activity) {
             Settings.Global.getInt(ctx.contentResolver, key, 0)
         } catch (e: Exception) {
             0
+        }
+    }
+
+    private fun isNfcOn(ctx: Context): Boolean {
+        return try {
+            android.nfc.NfcAdapter.getDefaultAdapter(ctx)?.isEnabled ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /// Days since the OS security patch level, or -1 if unknown.
+    private fun securityPatchAgeDays(): Int {
+        return try {
+            val patch = Build.VERSION.SECURITY_PATCH
+            if (patch.isNullOrEmpty()) return -1
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val date = sdf.parse(patch) ?: return -1
+            ((System.currentTimeMillis() - date.time) / (1000L * 60 * 60 * 24)).toInt()
+        } catch (e: Exception) {
+            -1
         }
     }
 }

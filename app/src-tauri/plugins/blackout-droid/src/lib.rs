@@ -25,7 +25,11 @@ pub struct Facts {
     /// A PIN/password/biometric lock is set (device encryption is keyed to this).
     pub screen_lock_set: bool,
     pub developer_options: bool,
+    pub usb_debugging: bool,
     pub location_on: bool,
+    pub nfc_on: bool,
+    /// Days since the OS security patch level, -1 if unknown.
+    pub patch_age_days: i32,
     pub sdk_int: i32,
     pub os_version: String,
     pub model: String,
