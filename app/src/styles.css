@@ -444,3 +444,17 @@ body[data-platform="linux"] .not-mac { display: block; }
   }
   .dz-icon { color: var(--accent); }
 }
+
+/* Toast — brief action confirmation so a button never silently does nothing */
+.toast {
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(12px);
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 16px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
+  z-index: 1000; max-width: 86vw; text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (min-width: 761px) { .toast { bottom: 28px; } }

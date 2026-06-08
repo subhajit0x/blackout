@@ -1,7 +1,15 @@
-// BLACKOUT desktop — frontend logic. Talks to the Rust backend via Tauri.
-const { invoke } = window.__TAURI__.core;
-const dialog = window.__TAURI__.dialog;
-const event = window.__TAURI__.event;
+// BLACKOUT — frontend logic. Talks to the Rust backend via Tauri.
+// Access the Tauri globals defensively: if any are missing on a given platform,
+// the app must still load and every button must still attach. A missing API
+// degrades that one feature, never the whole UI.
+const TAURI = window.__TAURI__ || {};
+const invoke = (TAURI.core && TAURI.core.invoke)
+  || (() => Promise.reject(new Error("Tauri bridge unavailable")));
+const dialog = TAURI.dialog || null;
+const event = TAURI.event || null;
+const _eventListen = event && event.listen ? event.listen.bind(event) : null;
+/// Subscribe to a Tauri event without ever throwing if the event API is absent.
+const listen = (name, cb) => { try { if (_eventListen) _eventListen(name, cb); } catch (_) {} };
 
 const base = (p) => (p || "").split("/").pop();
 const el = (id) => document.getElementById(id);
@@ -105,9 +113,13 @@ function renderLockdownGeneric() {
       <button class="btn btn-primary harden gen-lockdown">🛡 Lock down now — clear clipboard + open Airplane mode</button>
     </div>`;
     host.querySelectorAll(".gen-pane").forEach((b) =>
-      b.addEventListener("click", () => invoke("open_settings", { pane: b.dataset.pane })));
-    host.querySelector(".gen-lockdown").addEventListener("click", async (e) => {
-      const results = await invoke("apply_level", { level: 4 });
+      b.addEventListener("click", async () => {
+        const ok = await invoke("open_settings", { pane: b.dataset.pane }).catch(() => false);
+        toast(ok ? "Opening settings…" : "Couldn't open that on this device.");
+      }));
+    host.querySelector(".gen-lockdown").addEventListener("click", async () => {
+      toast("Locking down…");
+      const results = await invoke("apply_level", { level: 4 }).catch(() => []);
       renderActions("lockdownResults", results, "Lockdown applied");
     });
   } else {
@@ -262,9 +274,9 @@ function wireReveal(scope) {
 
 // drag & drop (native Tauri events)
 const dz = el("dropzone");
-event.listen("tauri://drag-enter", () => dz.classList.add("drag"));
-event.listen("tauri://drag-leave", () => dz.classList.remove("drag"));
-event.listen("tauri://drag-drop", (e) => {
+listen("tauri://drag-enter", () => dz.classList.add("drag"));
+listen("tauri://drag-leave", () => dz.classList.remove("drag"));
+listen("tauri://drag-drop", (e) => {
   dz.classList.remove("drag");
   const paths = (e.payload?.paths || []).filter((p) =>
     CLEAN_EXTS.includes((p.split(".").pop() || "").toLowerCase()));
@@ -297,7 +309,7 @@ el("watchStop").addEventListener("click", async () => {
   el("watchBtn").classList.remove("hidden");
 });
 
-event.listen("watch-cleaned", (e) => {
+listen("watch-cleaned", (e) => {
   const p = e.payload || {};
   const tag = p.status === "cleaned" ? "✓ cleaned" : p.status === "copied" ? "· no metadata" : p.status;
   const detail = (p.removed || []).length ? ` — ${p.removed[0]}` : "";
@@ -400,7 +412,10 @@ document.querySelectorAll(".level").forEach((btn) => {
 
 // deep-links to System Settings panes
 document.querySelectorAll("[data-settings]").forEach((b) =>
-  b.addEventListener("click", () => invoke("open_settings", { pane: b.dataset.settings })));
+  b.addEventListener("click", async () => {
+    const ok = await invoke("open_settings", { pane: b.dataset.settings }).catch(() => false);
+    if (!ok) toast("Couldn't open that settings pane.");
+  }));
 
 // admin-authenticated hardening
 el("hardenBtn").addEventListener("click", async () => {
@@ -442,6 +457,21 @@ function fmtBytes(n) {
   if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
   if (n >= 1024) return Math.round(n / 1024) + " KB";
   return n + " B";
+}
+
+// Brief on-screen confirmation so an action never silently does nothing.
+function toast(msg) {
+  let t = el("toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast";
+    t.className = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
 // Learn the platform and tailor the UI. Runs once at startup.
