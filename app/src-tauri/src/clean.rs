@@ -18,8 +18,9 @@ pub struct CleanRunResult {
 }
 
 /// Android: the URIs (JSON-encoded) of the files saved by the last clean, so the
-/// user can share them straight to another app.
+/// user can share them straight to another app. (Read only on Android.)
 #[derive(Default)]
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub struct LastCleaned(pub std::sync::Mutex<Vec<String>>);
 
 /// Where cleaned copies land: ~/Desktop/BLACKOUT-clean (falls back to home).
