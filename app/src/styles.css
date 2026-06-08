@@ -419,3 +419,28 @@ body[data-platform="linux"] .not-mac { display: block; }
   margin-right: 8px;
   white-space: nowrap;
 }
+
+/* OPSEC one-line verdict */
+.verdict {
+  font-size: 15px; font-weight: 700;
+  padding: 10px 14px; border-radius: 10px; margin: 4px 0 14px;
+  border: 1px solid var(--border);
+}
+.verdict.good { color: var(--good); background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.25); }
+.verdict.warn { color: var(--warn); background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.25); }
+.verdict.bad  { color: var(--bad);  background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.28); }
+
+/* Share-cleaned-files button (mobile clean flow) */
+.share-btn { width: 100%; margin: 4px 0 14px; padding: 14px; font-size: 15px; }
+
+/* Mobile: the Browse button IS the primary action — make it big and obvious. */
+@media (max-width: 760px) {
+  #browseBtn {
+    width: 100%; margin-top: 14px; padding: 15px;
+    font-size: 15px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; border: none;
+    box-shadow: 0 6px 18px rgba(59,130,246,.35);
+  }
+  .dz-icon { color: var(--accent); }
+}

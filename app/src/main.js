@@ -14,10 +14,18 @@ document.addEventListener("gesturestart", (e) => e.preventDefault());
 
 // ---------- view switching ----------
 const VIEWS = ["clean", "opsec", "lockdown", "panic"];
+let opsecScanned = false;
 function showView(name) {
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   el("view-" + name).classList.add("active");
+  window.scrollTo(0, 0);
+  // Auto-run the OPSEC scan the first time it's opened — show the score, no extra tap.
+  if (name === "opsec" && !opsecScanned) {
+    opsecScanned = true;
+    busy("scanBtn", true);
+    invoke("opsec_score").then((r) => { renderOpsec(r); busy("scanBtn", false); }).catch(() => busy("scanBtn", false));
+  }
 }
 document.querySelectorAll(".nav-item").forEach((btn) =>
   btn.addEventListener("click", () => showView(btn.dataset.view)));
@@ -222,6 +230,9 @@ function renderClean(res) {
   if (PLAT === "macos" && !res.ffmpeg && res.skipped > 0) {
     parts.push(`<div class="banner info">ℹ Install ffmpeg (brew install ffmpeg) to clean video / HEIC / M4A.</div>`);
   }
+  if (res.shareable) {
+    parts.push(`<button id="shareBtn" class="btn btn-primary share-btn">📤 Share cleaned ${res.cleaned === 1 ? "file" : "files"}</button>`);
+  }
   for (const r of res.reports) {
     const pill = r.status === "cleaned" ? "cleaned" : r.status === "copied" ? "copied"
       : r.status === "unsupported" ? "unsupported" : "error";
@@ -229,6 +240,8 @@ function renderClean(res) {
   }
   out.innerHTML = parts.join("");
   wireReveal(out);
+  const sb = el("shareBtn");
+  if (sb) sb.addEventListener("click", () => invoke("share_cleaned").catch(() => {}));
 }
 
 function renderInspect(reports) {
@@ -316,6 +329,16 @@ function renderOpsec(rep) {
   if (rep.device) {
     const parts = [rep.device.platform, rep.device.os_version, rep.device.model].filter(Boolean).join(" · ");
     if (parts) html += `<div class="device-row">${DEV_ICO}<span>${esc(parts)}</span></div>`;
+  }
+
+  // One-line verdict — only when there are real live checks (not a guide-only stub).
+  if (rep.checks.length > 1) {
+    const failing = rep.checks.filter((c) => c.status === "bad" || c.status === "warn").length;
+    const cls = rep.score >= 80 ? "good" : rep.score >= 50 ? "warn" : "bad";
+    const txt = failing === 0
+      ? "✓ Well protected"
+      : `${failing} thing${failing === 1 ? "" : "s"} to ${rep.score < 50 ? "fix now" : "tighten up"}`;
+    html += `<div class="verdict ${cls}">${txt}</div>`;
   }
 
   // Tailored guide — prioritized hardening steps.

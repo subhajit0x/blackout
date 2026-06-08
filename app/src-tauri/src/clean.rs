@@ -13,7 +13,14 @@ pub struct CleanRunResult {
     pub skipped: usize,
     pub errored: usize,
     pub ffmpeg: bool,
+    /// Android: at least one cleaned file was saved and can be shared.
+    pub shareable: bool,
 }
+
+/// Android: the URIs (JSON-encoded) of the files saved by the last clean, so the
+/// user can share them straight to another app.
+#[derive(Default)]
+pub struct LastCleaned(pub std::sync::Mutex<Vec<String>>);
 
 /// Where cleaned copies land: ~/Desktop/BLACKOUT-clean (falls back to home).
 fn default_out_dir() -> PathBuf {
@@ -52,6 +59,7 @@ pub fn clean_files(paths: Vec<String>) -> CleanRunResult {
         skipped,
         errored,
         ffmpeg,
+        shareable: false,
     }
 }
 
@@ -118,12 +126,14 @@ fn empty_result() -> CleanRunResult {
         skipped: 0,
         errored: 0,
         ffmpeg: false,
+        shareable: false,
     }
 }
 
 #[cfg(target_os = "android")]
 fn clean_picked_blocking(app: &tauri::AppHandle) -> CleanRunResult {
     use blackout_core::clean_named_bytes;
+    use tauri::Manager;
     use tauri_plugin_android_fs::{AndroidFsExt, PublicGeneralPurposeDir};
 
     let api = app.android_fs();
@@ -136,6 +146,7 @@ fn clean_picked_blocking(app: &tauri::AppHandle) -> CleanRunResult {
     };
 
     let mut reports: Vec<CleanReport> = Vec::new();
+    let mut saved_uris: Vec<String> = Vec::new();
     for uri in &uris {
         let name = api.get_name(uri).unwrap_or_else(|_| "file".to_string());
         let bytes = match api.read(uri) {
@@ -148,17 +159,30 @@ fn clean_picked_blocking(app: &tauri::AppHandle) -> CleanRunResult {
         let (mut report, out) = clean_named_bytes(&name, bytes);
         if let Some(out_bytes) = out {
             let rel = format!("BLACKOUT-clean/{name}");
-            let saved = api
-                .public_storage()
-                .create_new_file(None, PublicGeneralPurposeDir::Download, rel.as_str(), None)
-                .and_then(|dest| api.write(&dest, &out_bytes));
-            if saved.is_err() {
-                report.status = "skipped".to_string();
-                report.notes = vec!["Cleaned, but couldn't save to Downloads.".to_string()];
+            let dest = api.public_storage().create_new_file(
+                None,
+                PublicGeneralPurposeDir::Download,
+                rel.as_str(),
+                None,
+            );
+            match dest.and_then(|d| api.write(&d, &out_bytes).map(|_| d)) {
+                Ok(d) => {
+                    if let Ok(json) = d.to_json_string() {
+                        saved_uris.push(json);
+                    }
+                }
+                Err(_) => {
+                    report.status = "skipped".to_string();
+                    report.notes = vec!["Cleaned, but couldn't save to Downloads.".to_string()];
+                }
             }
         }
         reports.push(report);
     }
+
+    // Remember what we saved so the user can share it in one tap.
+    let shareable = !saved_uris.is_empty();
+    *app.state::<LastCleaned>().0.lock().unwrap() = saved_uris;
 
     let (cleaned, copied, skipped, errored) = tally(&reports);
     CleanRunResult {
@@ -169,6 +193,33 @@ fn clean_picked_blocking(app: &tauri::AppHandle) -> CleanRunResult {
         skipped,
         errored,
         ffmpeg: false,
+        shareable,
+    }
+}
+
+/// Android: open the system share sheet for the files saved by the last clean.
+#[tauri::command]
+pub async fn share_cleaned(app: tauri::AppHandle) {
+    #[cfg(target_os = "android")]
+    {
+        let _ = tauri::async_runtime::spawn_blocking(move || share_cleaned_blocking(&app)).await;
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = app;
+}
+
+#[cfg(target_os = "android")]
+fn share_cleaned_blocking(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    use tauri_plugin_android_fs::{AndroidFsExt, FileUri};
+
+    let jsons = app.state::<LastCleaned>().0.lock().unwrap().clone();
+    let uris: Vec<FileUri> = jsons
+        .iter()
+        .filter_map(|j| FileUri::from_json_str(j).ok())
+        .collect();
+    if !uris.is_empty() {
+        let _ = app.android_fs().file_opener().share_files(uris.iter());
     }
 }
 

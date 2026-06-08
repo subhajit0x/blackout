@@ -149,11 +149,13 @@ pub fn run() {
 
     builder
         .manage(watch::WatchState::default())
+        .manage(clean::LastCleaned::default())
         .invoke_handler(tauri::generate_handler![
             // CLEAN
             clean::inspect_files,
             clean::clean_files,
             clean::clean_picked,
+            clean::share_cleaned,
             clean::reveal_path,
             // OPSEC / LOCKDOWN / PANIC (portable, cfg-gated platform layer)
             opsec_score,
