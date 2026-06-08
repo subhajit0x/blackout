@@ -142,6 +142,10 @@ pub(crate) fn tally(checks: &[Check]) -> u32 {
     (earned * 100).checked_div(total).unwrap_or(0)
 }
 
+// Android OPSEC report builder — always compiled so the app's command layer can
+// turn live facts (from the native plugin) into a structured report.
+pub mod android_facts;
+
 // ---------------------------------------------------------------------------
 // Per-OS dispatch. Exactly one module compiles per target.
 // ---------------------------------------------------------------------------

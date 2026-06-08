@@ -260,6 +260,7 @@ name = "blackout-app"
 version = "0.1.0"
 dependencies = [
  "blackout-core",
+ "blackout-droid",
  "blackout-platform",
  "dirs 5.0.1",
  "notify",
@@ -282,6 +283,17 @@ dependencies = [
  "lopdf",
  "serde",
  "zip",
+]
+
+[[package]]
+name = "blackout-droid"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

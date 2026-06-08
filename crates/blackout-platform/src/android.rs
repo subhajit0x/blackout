@@ -64,10 +64,8 @@ pub fn capabilities() -> Capabilities {
         wifi: false,
         bluetooth: false,
         firewall: false,
-        // Android *can* deep-link to Settings via an Intent, but this build's
-        // open_settings() isn't wired to one yet — report what we can actually
-        // do today (false), flip to true when the native plugin lands.
-        settings_deeplink: false,
+        // The native plugin opens system Settings panels via Intents.
+        settings_deeplink: true,
     }
 }
 

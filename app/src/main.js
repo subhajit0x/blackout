@@ -196,12 +196,15 @@ function reportCard(r, statusLabel, pillClass, items) {
   }).join("");
   const removed = (items || []).map((x) => `<div class="removed-item">${esc(x)}</div>`).join("");
   const notes = (r.notes || []).map((n) => `<div class="note-item">${esc(n)}</div>`).join("");
+  const cleaned = r.status === "cleaned";
+  const foundHdr = findings ? `<div class="card-sub">${cleaned ? "🔍 Was in this file — now removed:" : "🔍 Found in this file:"}</div>` : "";
+  const rmHdr = removed ? `<div class="card-sub">🧹 Stripped:</div>` : "";
   return `<div class="card">
     <div class="card-head">
       <span class="card-name">${esc(base(r.source))}</span>
       <span class="card-cat">${esc(r.category)}</span>
       <span class="pill ${pillClass}">${statusLabel}</span>
-    </div>${findings}${removed}${notes}</div>`;
+    </div>${foundHdr}${findings}${rmHdr}${removed}${notes}</div>`;
 }
 
 function renderClean(res) {

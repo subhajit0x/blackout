@@ -221,6 +221,10 @@ pub fn clean_named_bytes(filename: &str, bytes: Vec<u8>) -> (CleanReport, Option
         );
     }
 
+    // Pull the *actual exposed values* (GPS, camera, author, …) BEFORE the bytes
+    // are consumed, so the result can show the user exactly what was in the file.
+    let findings = findings::extract(category, &ext, &bytes);
+
     match cleaner::clean_bytes(category, &ext, bytes) {
         Ok((out_bytes, removed, notes)) => {
             let status = if removed.is_empty() { "copied" } else { "cleaned" };
@@ -233,7 +237,7 @@ pub fn clean_named_bytes(filename: &str, bytes: Vec<u8>) -> (CleanReport, Option
                     output: None,
                     removed,
                     notes,
-                    findings: vec![],
+                    findings,
                     bytes_before: Some(before),
                     bytes_after: Some(after),
                 },

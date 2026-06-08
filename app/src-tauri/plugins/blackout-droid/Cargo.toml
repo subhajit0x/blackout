@@ -1,0 +1,16 @@
+[package]
+name = "blackout-droid"
+version = "0.1.0"
+description = "BLACKOUT native Android bridge: OPSEC facts, system-panel intents, clipboard."
+edition = "2021"
+# Required by tauri-plugin so the Android library is linked into the app build.
+links = "blackout-droid"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"

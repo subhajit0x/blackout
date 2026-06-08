@@ -39,4 +39,5 @@ notify = "6"
 # the bytes and saves cleaned copies to public Downloads.
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-android-fs = "28"
+blackout-droid = { path = "plugins/blackout-droid" }
 

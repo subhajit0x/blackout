@@ -11,18 +11,53 @@ mod watch;
 use blackout_platform as bp;
 
 #[tauri::command]
-fn opsec_score() -> bp::OpsecReport {
-    bp::opsec_score()
+fn opsec_score(app: tauri::AppHandle) -> bp::OpsecReport {
+    #[cfg(target_os = "android")]
+    {
+        let f = blackout_droid::opsec_facts(&app);
+        return bp::android_facts::opsec_from_facts(&bp::android_facts::AndroidFacts {
+            vpn_active: f.vpn_active,
+            wifi_on: f.wifi_on,
+            bluetooth_on: f.bluetooth_on,
+            airplane_on: f.airplane_on,
+            screen_lock_set: f.screen_lock_set,
+            developer_options: f.developer_options,
+            location_on: f.location_on,
+            sdk_int: f.sdk_int,
+            os_version: f.os_version,
+            model: f.model,
+        });
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::opsec_score()
+    }
 }
 
 #[tauri::command]
-fn apply_level(level: u32) -> Vec<bp::ActionResult> {
-    bp::apply_level(level)
+fn apply_level(app: tauri::AppHandle, level: u32) -> Vec<bp::ActionResult> {
+    #[cfg(target_os = "android")]
+    {
+        let _ = level;
+        return android_lockdown(&app);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::apply_level(level)
+    }
 }
 
 #[tauri::command]
-fn panic_now() -> Vec<bp::ActionResult> {
-    bp::panic_now()
+fn panic_now(app: tauri::AppHandle) -> Vec<bp::ActionResult> {
+    #[cfg(target_os = "android")]
+    return android_lockdown(&app);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::panic_now()
+    }
 }
 
 #[tauri::command]
@@ -31,18 +66,72 @@ fn capabilities() -> bp::Capabilities {
 }
 
 #[tauri::command]
-fn open_settings(pane: String) -> bool {
-    bp::open_settings(&pane)
+fn open_settings(app: tauri::AppHandle, pane: String) -> bool {
+    #[cfg(target_os = "android")]
+    return blackout_droid::open_panel(&app, &pane);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::open_settings(&pane)
+    }
 }
 
 #[tauri::command]
-fn harden_now() -> Vec<bp::ActionResult> {
-    bp::harden()
+fn harden_now(app: tauri::AppHandle) -> Vec<bp::ActionResult> {
+    #[cfg(target_os = "android")]
+    return android_lockdown(&app);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::harden()
+    }
 }
 
 #[tauri::command]
-fn apply_fix(id: String) -> Vec<bp::ActionResult> {
-    bp::apply_fix(&id)
+fn apply_fix(app: tauri::AppHandle, id: String) -> Vec<bp::ActionResult> {
+    #[cfg(target_os = "android")]
+    {
+        let ok = blackout_droid::open_panel(&app, &id);
+        return vec![action(
+            if ok { "done" } else { "unavailable" },
+            "Opened settings",
+            if ok {
+                "Opened the relevant Settings panel — make the change there."
+            } else {
+                "Couldn't open that panel on this device."
+            },
+        )];
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        bp::apply_fix(&id)
+    }
+}
+
+/// Android lockdown/panic: clear the clipboard and jump to Airplane mode (apps
+/// can't toggle radios, so we open the panel — honest, never faked).
+#[cfg(target_os = "android")]
+fn android_lockdown(app: &tauri::AppHandle) -> Vec<bp::ActionResult> {
+    let cleared = blackout_droid::clear_clipboard(app);
+    let opened = blackout_droid::open_panel(app, "airplane");
+    vec![
+        action(
+            if cleared { "done" } else { "error" },
+            "Clipboard cleared",
+            if cleared { "Any copied passwords or text were wiped." } else { "Couldn't clear the clipboard." },
+        ),
+        action(
+            if opened { "done" } else { "unavailable" },
+            "Airplane mode",
+            if opened { "Opened Airplane mode — turn it on to cut every radio." } else { "Couldn't open Airplane settings." },
+        ),
+    ]
+}
+
+#[cfg(target_os = "android")]
+fn action(status: &str, label: &str, detail: &str) -> bp::ActionResult {
+    bp::ActionResult { label: label.into(), status: status.into(), detail: detail.into() }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -51,9 +140,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
 
-    // Android: lets us read user-picked content:// URIs and save to Downloads.
+    // Android: file access (content:// URIs → Downloads) + native OPSEC bridge
+    // (VPN/Bluetooth/etc. state, settings panels, clipboard).
     #[cfg(target_os = "android")]
-    let builder = builder.plugin(tauri_plugin_android_fs::init());
+    let builder = builder
+        .plugin(tauri_plugin_android_fs::init())
+        .plugin(blackout_droid::init());
 
     builder
         .manage(watch::WatchState::default())
