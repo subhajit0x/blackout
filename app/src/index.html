@@ -66,7 +66,7 @@
               <div class="dz-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
               </div>
-              <div class="dz-title">Drop files here</div>
+              <div class="dz-title" id="dzTitle">Drop files here</div>
               <div class="dz-sub">photos · videos · documents · PDFs · audio</div>
               <button id="browseBtn" class="btn btn-ghost">Browse…</button>
             </div>
@@ -100,7 +100,7 @@
         <section class="view" id="view-opsec">
           <header class="view-head">
             <h1>OPSEC Score</h1>
-            <p>How exposed is this Mac right now? Read-only checks, in plain language.</p>
+            <p id="opsecSub">How exposed is this device right now? Read-only checks, in plain language.</p>
           </header>
 
           <div class="opsec-top">
@@ -118,10 +118,10 @@
         <section class="view" id="view-lockdown">
           <header class="view-head">
             <h1>Lockdown</h1>
-            <p>Reduce device exposure. Actions macOS blocks are clearly marked.</p>
+            <p id="lockdownSub">Reduce this device's exposure.</p>
           </header>
 
-          <div class="levels">
+          <div class="levels mac-only">
             <button class="level" data-level="1">
               <div class="level-n">1</div><div class="level-name">Public</div>
               <div class="level-desc">Turn off Bluetooth</div>
@@ -140,7 +140,7 @@
             </button>
           </div>
 
-          <div class="hardening">
+          <div class="hardening mac-only">
             <h2 class="sub">Real macOS hardening</h2>
             <p class="sub-note">Jump straight to a system toggle, or apply real changes with one password prompt.</p>
             <div class="deeplinks">
@@ -152,6 +152,9 @@
             <button id="hardenBtn" class="btn btn-primary harden">🛡 Harden now — Firewall + stealth (asks for password)</button>
           </div>
 
+          <!-- Non-macOS lockdown surface, filled per-platform by main.js. -->
+          <div id="lockdownGeneric" class="not-mac"></div>
+
           <div id="lockdownResults" class="results"></div>
         </section>
 
@@ -159,7 +162,7 @@
         <section class="view" id="view-panic">
           <header class="view-head">
             <h1>Panic</h1>
-            <p>One tap, complete isolation: wipe clipboard, kill Wi-Fi/Bluetooth, turn AirDrop off, open Apple Lockdown Mode, lock the screen.</p>
+            <p id="panicSub">One tap, complete isolation.</p>
           </header>
 
           <div class="panic-wrap">

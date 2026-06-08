@@ -30,6 +30,88 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// ================= PLATFORM =================
+// Every screen shows only what THIS OS can actually do. We learn the platform
+// from the backend's capabilities() once, then tailor copy + which controls show.
+let CAP = { platform: "", wifi: false, bluetooth: false, firewall: false, settings_deeplink: false };
+let PLAT = "macos"; // normalized: macos | windows | linux | android | ios
+const PLAT_NAME = { macos: "macOS", windows: "Windows", linux: "Linux", android: "Android", ios: "iOS" };
+const platName = () => PLAT_NAME[PLAT] || CAP.platform || "this device";
+
+async function detectPlatform() {
+  try { CAP = (await invoke("capabilities")) || CAP; } catch (_) {}
+  const p = (CAP.platform || "").toLowerCase();
+  PLAT = p.includes("mac") ? "macos"
+    : p.includes("win") ? "windows"
+    : p.includes("ios") ? "ios"
+    : p.includes("droid") ? "android"
+    : p.includes("linux") ? "linux"
+    : (p || "macos");
+  document.body.dataset.platform = PLAT;
+  applyPlatformCopy();
+  renderLockdownGeneric();
+}
+
+function applyPlatformCopy() {
+  const lockSub = {
+    macos: "Reduce device exposure. Actions macOS blocks are clearly marked.",
+    android: "One-tap exposure controls for Android — opens the right system panel and clears your clipboard.",
+    ios: "iOS limits what apps may change. Your OPSEC guide has the exact steps for iPhone/iPad.",
+    windows: "Live hardening for Windows is on the way — your OPSEC guide has the steps to do now.",
+    linux: "Live hardening for Linux is on the way — your OPSEC guide has the steps to do now.",
+  };
+  const panicSub = {
+    macos: "One tap, complete isolation: wipe clipboard, kill Wi-Fi/Bluetooth, turn AirDrop off, open Lockdown Mode, lock the screen.",
+    android: "One tap: clear the clipboard and jump to Airplane mode so you can cut every radio fast.",
+    ios: "iOS won't let an app cut radios or lock the device. Use the steps in your OPSEC guide.",
+    windows: "Live panic actions for Windows are coming — your OPSEC guide has the steps for now.",
+    linux: "Live panic actions for Linux are coming — your OPSEC guide has the steps for now.",
+  };
+  const setTxt = (id, txt) => { const e = el(id); if (e && txt) e.textContent = txt; };
+  setTxt("lockdownSub", lockSub[PLAT] || lockSub.macos);
+  setTxt("panicSub", panicSub[PLAT] || panicSub.macos);
+  if (PLAT !== "macos" && PLAT !== "windows" && PLAT !== "linux") {
+    setTxt("dzTitle", "Choose files to clean");
+  }
+}
+
+// Android (and any non-macOS) Lockdown surface: real deep-links + one-tap.
+const GENERIC_PANES = {
+  android: [
+    ["wifi", "Wi-Fi"], ["bluetooth", "Bluetooth"], ["airplane", "Airplane mode"],
+    ["location", "Location"], ["permissions", "App permissions"],
+  ],
+};
+function renderLockdownGeneric() {
+  const host = el("lockdownGeneric");
+  if (!host || PLAT === "macos") { if (host) host.innerHTML = ""; return; }
+  const panes = GENERIC_PANES[PLAT];
+  if (panes) {
+    const links = panes
+      .map(([pane, label]) => `<button class="btn btn-ghost gen-pane" data-pane="${pane}">${label} ↗</button>`)
+      .join("");
+    host.innerHTML = `<div class="hardening">
+      <h2 class="sub">${platName()} controls</h2>
+      <p class="sub-note">Jump straight to the system panel, or lock down in one tap.</p>
+      <div class="deeplinks">${links}</div>
+      <button class="btn btn-primary harden gen-lockdown">🛡 Lock down now — clear clipboard + open Airplane mode</button>
+    </div>`;
+    host.querySelectorAll(".gen-pane").forEach((b) =>
+      b.addEventListener("click", () => invoke("open_settings", { pane: b.dataset.pane })));
+    host.querySelector(".gen-lockdown").addEventListener("click", async (e) => {
+      const results = await invoke("apply_level", { level: 4 });
+      renderActions("lockdownResults", results, "Lockdown applied");
+    });
+  } else {
+    // iOS / Windows / Linux: no live control — point to the device guide.
+    host.innerHTML = `<div class="hardening">
+      <p class="sub-note">Live one-tap control isn't available on ${platName()} yet. Your OPSEC guide has the exact, accurate steps for this device.</p>
+      <button class="btn btn-primary gen-guide">Open the ${platName()} guide →</button>
+    </div>`;
+    host.querySelector(".gen-guide").addEventListener("click", () => showView("opsec"));
+  }
+}
+
 // ================= CLEAN =================
 let selected = [];
 
@@ -94,7 +176,7 @@ function reportCard(r, statusLabel, pillClass, items) {
   const findings = (r.findings || []).map((f) => {
     const icon = F_ICON[f.kind] || ICO('<circle cx="12" cy="12" r="2"/>');
     const map = f.kind === "location"
-      ? ` <a class="reveal maplink" data-path="https://maps.apple.com/?ll=${encodeURIComponent(f.value)}">show on map ↗</a>`
+      ? ` <a class="reveal maplink" data-path="https://www.google.com/maps?q=${encodeURIComponent(f.value)}">show on map ↗</a>`
       : "";
     return `<div class="finding">
       <span class="f-ico ${f.kind}">${icon}</span>
@@ -118,7 +200,7 @@ function renderClean(res) {
     ✓ ${res.cleaned} cleaned · ${res.copied} copied · ${res.skipped} skipped · ${res.errored} errored
     <a class="reveal" data-path="${esc(res.out_dir)}">Reveal output folder ↗</a>
   </div>`);
-  if (!res.ffmpeg && res.skipped > 0) {
+  if (PLAT === "macos" && !res.ffmpeg && res.skipped > 0) {
     parts.push(`<div class="banner info">ℹ Install ffmpeg (brew install ffmpeg) to clean video / HEIC / M4A.</div>`);
   }
   for (const r of res.reports) {
@@ -297,7 +379,7 @@ function renderActions(targetId, results, title) {
   const parts = [`<div class="banner ok">⚡ ${title}</div>`];
   for (const a of results) {
     const labelHtml = a.status === "unavailable"
-      ? `<span class="strike">${esc(a.label)}</span> <span style="color:var(--muted)">— not available on macOS</span>`
+      ? `<span class="strike">${esc(a.label)}</span> <span style="color:var(--muted)">— not available on ${esc(platName())}</span>`
       : esc(a.label);
     parts.push(`<div class="action ${a.status}">
       <span class="action-ico">${icon(a.status)}</span>
@@ -313,3 +395,6 @@ function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
+
+// Learn the platform and tailor the UI. Runs once at startup.
+detectPlatform();

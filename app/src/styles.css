@@ -387,3 +387,16 @@ body {
   .view-head h1 { font-size: 21px; }
   .panic-btn { width: 150px; height: 150px; }
 }
+
+/* ---------- platform gating ----------
+   The UI shows only what THIS OS can do. main.js sets body[data-platform];
+   default (pre-JS) behaves like desktop so there's no flash of mobile UI. */
+.not-mac { display: none; }
+body[data-platform="android"] .mac-only,
+body[data-platform="ios"] .mac-only,
+body[data-platform="windows"] .mac-only,
+body[data-platform="linux"] .mac-only { display: none; }
+body[data-platform="android"] .not-mac,
+body[data-platform="ios"] .not-mac,
+body[data-platform="windows"] .not-mac,
+body[data-platform="linux"] .not-mac { display: block; }
