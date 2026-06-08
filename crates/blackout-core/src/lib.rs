@@ -100,7 +100,8 @@ pub fn inspect_file(input: &Path) -> CleanReport {
         Err(_) => return CleanReport::error(input, category.label(), "Couldn't read this file — it may have moved or be locked."),
     };
     let before = bytes.len() as u64;
-    // Pull the real values *before* the bytes are consumed by the cleaner.
+    // Trust content over the filename, then pull the real values before cleaning.
+    let (category, ext) = effective_type(&ext, &bytes);
     let found = findings::extract(category, &ext, &bytes);
 
     match cleaner::clean_bytes(category, &ext, bytes) {
@@ -115,7 +116,17 @@ pub fn inspect_file(input: &Path) -> CleanReport {
             bytes_before: Some(before),
             bytes_after: None,
         },
-        Err(e) => CleanReport::error(input, category.label(), e.to_string()),
+        Err(_) => CleanReport {
+            source: input.to_path_buf(),
+            category: category.label().into(),
+            status: "skipped".into(),
+            output: None,
+            removed: vec![],
+            notes: vec!["Couldn't read this as a supported file.".into()],
+            findings: found,
+            bytes_before: Some(before),
+            bytes_after: None,
+        },
     }
 }
 
@@ -172,6 +183,8 @@ pub fn clean_file(input: &Path, out_dir: &Path, ffmpeg_ok: bool) -> CleanReport 
         Ok(b) => b,
         Err(_) => return CleanReport::error(input, category.label(), "Couldn't read this file — it may have moved or be locked."),
     };
+    // Trust the content over the filename (handles mislabeled / extensionless files).
+    let (category, ext) = effective_type(&ext, &bytes);
 
     match cleaner::clean_bytes(category, &ext, bytes) {
         Ok((out_bytes, removed, notes)) => {
@@ -190,7 +203,19 @@ pub fn clean_file(input: &Path, out_dir: &Path, ffmpeg_ok: bool) -> CleanReport 
                 bytes_after: Some(out_bytes.len() as u64),
             }
         }
-        Err(e) => CleanReport::error(input, category.label(), e.to_string()),
+        // Corrupt / empty / not actually a supported type — skip calmly, never a
+        // scary error. Nothing was written; the original is untouched.
+        Err(_) => CleanReport {
+            source: input.to_path_buf(),
+            category: category.label().into(),
+            status: "skipped".into(),
+            output: None,
+            removed: vec![],
+            notes: vec!["We couldn't read this as a supported file, so it was left unchanged.".into()],
+            findings: vec![],
+            bytes_before: before,
+            bytes_after: None,
+        },
     }
 }
 
@@ -203,11 +228,21 @@ pub fn clean_file(input: &Path, out_dir: &Path, ffmpeg_ok: bool) -> CleanReport 
 // return a scary error: anything we can't process degrades to a calm status.
 // ---------------------------------------------------------------------------
 
+/// Resolve what to clean a file *as*: trust its magic bytes, fall back to the
+/// filename's extension. So a mislabeled (`.docx` renamed `.jpg`) or
+/// extensionless file is still cleaned by its real type.
+fn effective_type(named_ext: &str, bytes: &[u8]) -> (FileCategory, String) {
+    match filetype::sniff(bytes) {
+        Some((cat, ext)) => (cat, ext.to_string()),
+        None => (filetype::categorize(named_ext), named_ext.to_string()),
+    }
+}
+
 /// Clean already-read bytes. Returns the report plus the cleaned bytes to save
 /// (None when there's nothing to write — unsupported format or unreadable file).
 pub fn clean_named_bytes(filename: &str, bytes: Vec<u8>) -> (CleanReport, Option<Vec<u8>>) {
-    let ext = filetype::ext_of(Path::new(filename));
-    let category = filetype::categorize(&ext);
+    let named_ext = filetype::ext_of(Path::new(filename));
+    let (category, ext) = effective_type(&named_ext, &bytes);
     let before = bytes.len() as u64;
     let source = PathBuf::from(filename);
 
@@ -255,8 +290,8 @@ pub fn clean_named_bytes(filename: &str, bytes: Vec<u8>) -> (CleanReport, Option
 
 /// Inspect already-read bytes: report the exposed metadata without writing.
 pub fn inspect_named_bytes(filename: &str, bytes: Vec<u8>) -> CleanReport {
-    let ext = filetype::ext_of(Path::new(filename));
-    let category = filetype::categorize(&ext);
+    let named_ext = filetype::ext_of(Path::new(filename));
+    let (category, ext) = effective_type(&named_ext, &bytes);
     let before = bytes.len() as u64;
     let source = PathBuf::from(filename);
     let findings = findings::extract(category, &ext, &bytes);
@@ -325,6 +360,16 @@ fn unique_output_path(input: &Path, out_dir: &Path) -> std::io::Result<PathBuf> 
 #[cfg(test)]
 mod bytes_api_tests {
     use super::*;
+
+    #[test]
+    fn empty_or_corrupt_is_skipped_never_errored() {
+        // A 0-byte or junk file must report "skipped", never "error".
+        let (r, out) = clean_named_bytes("empty.jpg", vec![]);
+        assert_eq!(r.status, "skipped");
+        assert!(out.is_none());
+        let (r2, _) = clean_named_bytes("x.png", vec![1, 2, 3, 4, 5]);
+        assert_ne!(r2.status, "error");
+    }
 
     #[test]
     fn garbage_input_never_panics_and_degrades_softly() {

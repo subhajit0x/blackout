@@ -143,7 +143,7 @@ fn print_clean_human(reports: &[CleanReport], out: &Path, ffmpeg_ok: bool) {
                 copied += 1;
                 println!("{GREEN}✓{RESET} {BOLD}{name}{RESET}  {DIM}({}) — no embedded metadata found{RESET}", r.category);
             }
-            "unsupported" => {
+            "unsupported" | "skipped" => {
                 skipped += 1;
                 println!("{YELLOW}–{RESET} {BOLD}{name}{RESET}  {DIM}({}){RESET}", r.category);
             }

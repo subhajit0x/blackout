@@ -247,7 +247,7 @@ function renderClean(res) {
   }
   for (const r of res.reports) {
     const pill = r.status === "cleaned" ? "cleaned" : r.status === "copied" ? "copied"
-      : r.status === "unsupported" ? "unsupported" : "error";
+      : (r.status === "unsupported" || r.status === "skipped") ? "unsupported" : "error";
     parts.push(reportCard(r, r.status, pill, r.removed));
   }
   out.innerHTML = parts.join("");
