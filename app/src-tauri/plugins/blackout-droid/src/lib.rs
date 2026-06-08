@@ -8,7 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::plugin::{Builder, TauriPlugin};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
+#[cfg(target_os = "android")]
+use tauri::Manager;
 
 /// Live device state read from Android APIs. All best-effort; unknown → false/0.
 /// camelCase to match the Kotlin JSObject keys sent over the mobile bridge.
@@ -29,11 +31,13 @@ pub struct Facts {
     pub model: String,
 }
 
+#[cfg(target_os = "android")]
 #[derive(Serialize)]
 struct PanelArg<'a> {
     panel: &'a str,
 }
 
+#[cfg(target_os = "android")]
 #[derive(Deserialize, Default)]
 struct OkResp {
     ok: bool,
@@ -42,21 +46,15 @@ struct OkResp {
 /// Holds the live handle to the Kotlin plugin (Android only).
 #[cfg(target_os = "android")]
 pub struct BlackoutDroid<R: Runtime>(tauri::plugin::PluginHandle<R>);
-#[cfg(not(target_os = "android"))]
-pub struct BlackoutDroid<R: Runtime>(std::marker::PhantomData<R>);
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("blackout-droid")
-        .setup(|app, _api| {
+        .setup(|_app, _api| {
             #[cfg(target_os = "android")]
             {
-                let handle =
-                    _api.register_android_plugin("com.plugin.blackout_droid", "BlackoutDroidPlugin")?;
-                app.manage(BlackoutDroid(handle));
-            }
-            #[cfg(not(target_os = "android"))]
-            {
-                app.manage(BlackoutDroid::<R>(std::marker::PhantomData));
+                let handle = _api
+                    .register_android_plugin("com.plugin.blackout_droid", "BlackoutDroidPlugin")?;
+                _app.manage(BlackoutDroid(handle));
             }
             Ok(())
         })

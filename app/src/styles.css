@@ -410,3 +410,12 @@ body[data-platform="linux"] .not-mac { display: block; }
   letter-spacing: 0.01em;
 }
 .card-sub:first-of-type { margin-top: 8px; }
+
+/* size reduction badge in a clean result card */
+.card-size {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+  margin-right: 8px;
+  white-space: nowrap;
+}

@@ -199,10 +199,12 @@ function reportCard(r, statusLabel, pillClass, items) {
   const cleaned = r.status === "cleaned";
   const foundHdr = findings ? `<div class="card-sub">${cleaned ? "🔍 Was in this file — now removed:" : "🔍 Found in this file:"}</div>` : "";
   const rmHdr = removed ? `<div class="card-sub">🧹 Stripped:</div>` : "";
+  const size = (r.bytes_before && r.bytes_after && r.bytes_after <= r.bytes_before)
+    ? `<span class="card-size">${fmtBytes(r.bytes_before)} → ${fmtBytes(r.bytes_after)}</span>` : "";
   return `<div class="card">
     <div class="card-head">
       <span class="card-name">${esc(base(r.source))}</span>
-      <span class="card-cat">${esc(r.category)}</span>
+      <span class="card-cat">${esc(r.category)}</span>${size}
       <span class="pill ${pillClass}">${statusLabel}</span>
     </div>${foundHdr}${findings}${rmHdr}${removed}${notes}</div>`;
 }
@@ -411,6 +413,12 @@ function renderActions(targetId, results, title) {
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function fmtBytes(n) {
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+  if (n >= 1024) return Math.round(n / 1024) + " KB";
+  return n + " B";
 }
 
 // Learn the platform and tailor the UI. Runs once at startup.

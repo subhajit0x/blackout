@@ -56,6 +56,7 @@ class BlackoutDroidPlugin(private val activity: Activity) : Plugin(activity) {
                 "airplane" -> Settings.ACTION_AIRPLANE_MODE_SETTINGS
                 "location" -> Settings.ACTION_LOCATION_SOURCE_SETTINGS
                 "security" -> Settings.ACTION_SECURITY_SETTINGS
+                "developer" -> Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS
                 "permissions", "privacy" -> Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                 else -> Settings.ACTION_SETTINGS
             }

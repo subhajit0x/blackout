@@ -26,7 +26,7 @@ fn how(label: &str) -> Option<(&'static str, &'static str)> {
         "Encrypted tunnel (VPN/Tor)" => ("wifi", "Connect a trusted no-logs VPN, or route through Tor with Orbot, before using untrusted networks."),
         "Bluetooth" => ("bluetooth", "Turn Bluetooth off when you're not actively using it."),
         "Airplane mode" => ("airplane", "Toggle Airplane mode to cut every radio at once."),
-        "Developer options" => ("security", "Settings ▸ System ▸ Developer options ▸ turn off (and disable USB debugging)."),
+        "Developer options" => ("developer", "Settings ▸ System ▸ Developer options ▸ turn off (and disable USB debugging)."),
         "Location services" => ("location", "Settings ▸ Location ▸ turn off, or revoke location from apps that don't need it."),
         _ => return None,
     })
@@ -51,8 +51,10 @@ pub fn opsec_from_facts(f: &AndroidFacts) -> OpsecReport {
         },
         if f.vpn_active {
             check("Encrypted tunnel (VPN/Tor)", "good", "An encrypted tunnel is active — your provider can't see which sites you visit.", 14)
+        } else if f.wifi_on {
+            check("Encrypted tunnel (VPN/Tor)", "warn", "On Wi-Fi with no VPN/Tor — whoever runs this network can see the sites you visit.", 14)
         } else {
-            check("Encrypted tunnel (VPN/Tor)", "warn", "No VPN/Tor tunnel — your carrier or network can log the sites you connect to.", 14)
+            check("Encrypted tunnel (VPN/Tor)", "warn", "No VPN/Tor tunnel — your carrier can log the sites you connect to.", 14)
         },
         if f.bluetooth_on {
             check("Bluetooth", "warn", "Bluetooth is on — nearby devices can detect and try to pair.", 8)
@@ -101,4 +103,67 @@ pub fn opsec_from_facts(f: &AndroidFacts) -> OpsecReport {
     let score = tally(&checks);
     let dev = device("Android", &f.os_version, &f.model);
     OpsecReport { score, device: dev, checks, guide }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{opsec_from_facts, AndroidFacts};
+
+    fn secure() -> AndroidFacts {
+        AndroidFacts {
+            vpn_active: true,
+            wifi_on: false,
+            bluetooth_on: false,
+            airplane_on: true,
+            screen_lock_set: true,
+            developer_options: false,
+            location_on: false,
+            sdk_int: 34,
+            os_version: "14".into(),
+            model: "Pixel".into(),
+        }
+    }
+
+    #[test]
+    fn secure_device_scores_high_with_no_guide() {
+        let r = opsec_from_facts(&secure());
+        assert!(r.score >= 90, "secure device should score high, got {}", r.score);
+        assert!(r.score <= 100, "score within range");
+        assert!(r.guide.is_empty(), "nothing failing → no remediation steps");
+        assert_eq!(r.device.platform, "Android");
+    }
+
+    #[test]
+    fn insecure_device_scores_low_and_guides() {
+        // Genuinely exposed: no lock, no tunnel, radios + dev options + location all on.
+        let f = AndroidFacts {
+            screen_lock_set: false,
+            vpn_active: false,
+            wifi_on: true,
+            bluetooth_on: true,
+            developer_options: true,
+            location_on: true,
+            airplane_on: false,
+            ..Default::default()
+        };
+        let r = opsec_from_facts(&f);
+        assert!(r.score < 50, "insecure device should score low, got {}", r.score);
+        // The no-lock case is the worst and must be flagged "bad".
+        let lock = r.checks.iter().find(|c| c.label == "Screen lock").unwrap();
+        assert_eq!(lock.status, "bad");
+        assert!(!r.guide.is_empty(), "failing checks must produce guidance");
+        // Every check is categorized and (if failing) has a fix panel + how-to.
+        for c in &r.checks {
+            assert_ne!(c.category, "Other", "check '{}' has no category", c.label);
+        }
+    }
+
+    #[test]
+    fn every_guide_step_has_a_panel_and_howto() {
+        let r = opsec_from_facts(&AndroidFacts::default());
+        for g in &r.guide {
+            assert!(g.fix.is_some(), "guide step '{}' should open a panel", g.title);
+            assert!(!g.how.is_empty(), "guide step '{}' needs how-to text", g.title);
+        }
+    }
 }
