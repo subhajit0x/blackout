@@ -21,8 +21,9 @@ document.addEventListener("dragstart", (e) => e.preventDefault());
 document.addEventListener("gesturestart", (e) => e.preventDefault());
 
 // ---------- view switching ----------
-const VIEWS = ["clean", "opsec", "lockdown", "panic"];
+const VIEWS = ["clean", "opsec", "apps", "lockdown", "panic"];
 let opsecScanned = false;
+let appsScanned = false;
 function showView(name) {
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
@@ -34,13 +35,17 @@ function showView(name) {
     busy("scanBtn", true);
     invoke("opsec_score").then((r) => { renderOpsec(r); busy("scanBtn", false); }).catch(() => busy("scanBtn", false));
   }
+  if (name === "apps" && !appsScanned) {
+    appsScanned = true;
+    scanApps();
+  }
 }
 document.querySelectorAll(".nav-item").forEach((btn) =>
   btn.addEventListener("click", () => showView(btn.dataset.view)));
 
-// Desktop keyboard shortcuts: Cmd/Ctrl + 1..4 switch tabs.
+// Desktop keyboard shortcuts: Cmd/Ctrl + 1..5 switch tabs.
 document.addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "4") {
+  if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "5") {
     e.preventDefault();
     showView(VIEWS[parseInt(e.key, 10) - 1]);
   }
@@ -400,6 +405,72 @@ function renderOpsec(rep) {
       renderOpsec(await invoke("opsec_score")); // re-scan to reflect the change
     }));
 }
+
+// ================= APPS (threat scan) =================
+let allApps = [];
+
+async function scanApps() {
+  busy("scanAppsBtn", true);
+  try { allApps = (await invoke("list_apps")) || []; } catch (_) { allApps = []; }
+  busy("scanAppsBtn", false);
+  renderApps();
+}
+
+// How suspicious an app looks — the signals real malware/RATs tend to show.
+function threatScore(a) {
+  const recent = Date.now() - (a.updated || 0) < 7 * 864e5;
+  return (a.sideloaded ? 3 : 0) + (a.accessibility ? 3 : 0) + (a.deviceAdmin ? 3 : 0)
+    + (a.riskyPerms >= 3 ? 2 : a.riskyPerms >= 1 ? 1 : 0) + (recent ? 1 : 0);
+}
+
+function renderApps() {
+  const out = el("appsResults");
+  if (!out) return;
+  const showSystem = el("showSystem") && el("showSystem").checked;
+  const apps = allApps.filter((a) => showSystem || !a.system)
+    .sort((x, y) => threatScore(y) - threatScore(x) || (y.updated || 0) - (x.updated || 0));
+  const flagged = apps.filter((a) => threatScore(a) >= 3).length;
+  const parts = [`<div class="banner ${flagged ? "warn" : "ok"}">
+    ${flagged ? `⚠ ${flagged} app${flagged === 1 ? "" : "s"} worth a closer look` : "✓ Nothing obviously suspicious"}
+    <span class="dim">· ${apps.length} apps scanned</span>
+  </div>`];
+  for (const a of apps) parts.push(appRow(a));
+  if (!apps.length) parts.push(`<div class="note-item">No apps to show. Tap “Scan apps”.</div>`);
+  out.innerHTML = parts.join("");
+  out.querySelectorAll(".app-uninstall").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const ok = await invoke("uninstall_app", { pkg: b.dataset.pkg }).catch(() => false);
+      toast(ok ? "Confirm the uninstall…" : "Couldn't open the uninstaller.");
+    }));
+  out.querySelectorAll(".app-info").forEach((b) =>
+    b.addEventListener("click", () => invoke("open_app_settings", { pkg: b.dataset.pkg }).catch(() => {})));
+}
+
+function appRow(a) {
+  const recent = Date.now() - (a.updated || 0) < 7 * 864e5;
+  const badges = [];
+  if (a.sideloaded) badges.push(`<span class="badge bad">Sideloaded</span>`);
+  if (a.accessibility) badges.push(`<span class="badge bad">Reads your screen</span>`);
+  if (a.deviceAdmin) badges.push(`<span class="badge bad">Device admin</span>`);
+  if (a.riskyPerms >= 1) badges.push(`<span class="badge warn">${a.riskyPerms} risky perms</span>`);
+  if (recent) badges.push(`<span class="badge">Recent</span>`);
+  if (a.system) badges.push(`<span class="badge muted">System</span>`);
+  const when = a.installed ? new Date(a.installed).toLocaleDateString() : "";
+  return `<div class="app-row ${threatScore(a) >= 3 ? "flag" : ""}">
+    <div class="app-main">
+      <div class="app-name">${esc(a.name || a.package)}</div>
+      <div class="app-pkg">${esc(a.package)}${when ? ` · ${esc(when)}` : ""}</div>
+      <div class="app-badges">${badges.join("")}</div>
+    </div>
+    <div class="app-actions">
+      <button class="btn btn-text app-info" data-pkg="${esc(a.package)}">Info</button>
+      <button class="btn btn-ghost app-uninstall" data-pkg="${esc(a.package)}">Uninstall</button>
+    </div>
+  </div>`;
+}
+
+if (el("scanAppsBtn")) el("scanAppsBtn").addEventListener("click", scanApps);
+if (el("showSystem")) el("showSystem").addEventListener("change", renderApps);
 
 // ================= LOCKDOWN =================
 document.querySelectorAll(".level").forEach((btn) => {

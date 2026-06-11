@@ -34,6 +34,11 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M12 13l4-3"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/></svg>
             </span> OPSEC Score
           </button>
+          <button class="nav-item android-only" data-view="apps">
+            <span class="nav-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+            </span> Apps
+          </button>
           <button class="nav-item" data-view="lockdown">
             <span class="nav-ico">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -112,6 +117,21 @@
           </div>
 
           <div id="opsecChecks" class="checks"></div>
+        </section>
+
+        <!-- APPS (Android: find suspicious / malicious apps) -->
+        <section class="view android-only" id="view-apps">
+          <header class="view-head">
+            <h1>Apps</h1>
+            <p id="appsSub">Spot apps that shouldn't be here — sideloaded, watching your screen, or hard to remove — and uninstall in one tap.</p>
+          </header>
+
+          <div class="apps-bar">
+            <button id="scanAppsBtn" class="btn btn-primary">Scan apps</button>
+            <label class="apps-toggle"><input type="checkbox" id="showSystem" /> Show system apps</label>
+          </div>
+
+          <div id="appsResults" class="results"></div>
         </section>
 
         <!-- LOCKDOWN -->

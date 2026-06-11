@@ -458,3 +458,31 @@ body[data-platform="linux"] .not-mac { display: block; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (min-width: 761px) { .toast { bottom: 28px; } }
+
+/* ---------- Apps / threat scan (Android-only tab) ---------- */
+body:not([data-platform="android"]) .nav-item.android-only { display: none; }
+
+.apps-bar { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; flex-wrap: wrap; }
+.apps-toggle { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.apps-toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.app-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; margin-bottom: 8px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+}
+.app-row.flag { border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.05); }
+.app-main { flex: 1; min-width: 0; }
+.app-name { font-weight: 700; font-size: 14px; }
+.app-pkg { font-size: 11px; color: var(--muted); margin-top: 1px; word-break: break-all; }
+.app-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+}
+.badge.bad { color: var(--bad); background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+.badge.warn { color: var(--warn); background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); }
+.badge.muted { opacity: .65; }
+.app-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.app-actions .app-uninstall { color: var(--bad); border-color: rgba(239,68,68,.35); padding: 7px 12px; }
+.app-actions .btn { font-size: 12px; }

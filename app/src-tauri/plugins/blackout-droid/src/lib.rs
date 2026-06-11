@@ -36,15 +36,49 @@ pub struct Facts {
 }
 
 #[cfg(target_os = "android")]
+#[cfg(target_os = "android")]
 #[derive(Serialize)]
 struct PanelArg<'a> {
     panel: &'a str,
 }
 
 #[cfg(target_os = "android")]
+#[derive(Serialize)]
+struct PkgArg<'a> {
+    pkg: &'a str,
+}
+
+#[cfg(target_os = "android")]
 #[derive(Deserialize, Default)]
 struct OkResp {
     ok: bool,
+}
+
+/// One installed app + the threat signals real malware tends to show.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct AppInfo {
+    pub name: String,
+    pub package: String,
+    pub system: bool,
+    /// Installed from outside an app store (sideloaded) — high signal for malware.
+    pub sideloaded: bool,
+    /// Runs an enabled accessibility service (RATs abuse this to read/control the screen).
+    pub accessibility: bool,
+    /// Active device administrator (persistence / hard to remove).
+    pub device_admin: bool,
+    /// Count of high-risk permissions (SMS, mic, camera, overlay, install, …).
+    pub risky_perms: i32,
+    /// First install / last update, epoch millis.
+    pub installed: i64,
+    pub updated: i64,
+    pub installer: String,
+}
+
+#[cfg(target_os = "android")]
+#[derive(Deserialize, Default)]
+struct AppList {
+    apps: Vec<AppInfo>,
 }
 
 /// Holds the live handle to the Kotlin plugin (Android only).
@@ -116,5 +150,59 @@ pub fn clear_clipboard<R: Runtime>(app: &AppHandle<R>) -> bool {
     }
     #[cfg(not(target_os = "android"))]
     let _ = app;
+    false
+}
+
+/// Every installed app with its threat flags (for the "Am I hacked?" scan).
+pub fn list_apps<R: Runtime>(app: &AppHandle<R>) -> Vec<AppInfo> {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(state) = app.try_state::<BlackoutDroid<R>>() {
+            return state
+                .inner()
+                .0
+                .run_mobile_plugin::<AppList>("listApps", serde_json::json!({}))
+                .map(|r| r.apps)
+                .unwrap_or_default();
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = app;
+    Vec::new()
+}
+
+/// Launch the system uninstaller for a package (user confirms). Returns success.
+pub fn uninstall_app<R: Runtime>(app: &AppHandle<R>, pkg: &str) -> bool {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(state) = app.try_state::<BlackoutDroid<R>>() {
+            return state
+                .inner()
+                .0
+                .run_mobile_plugin::<OkResp>("uninstallApp", PkgArg { pkg })
+                .map(|r| r.ok)
+                .unwrap_or(false);
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = (app, pkg);
+    false
+}
+
+/// Open a package's App info / permissions screen.
+pub fn open_app_settings<R: Runtime>(app: &AppHandle<R>, pkg: &str) -> bool {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(state) = app.try_state::<BlackoutDroid<R>>() {
+            return state
+                .inner()
+                .0
+                .run_mobile_plugin::<OkResp>("openAppSettings", PkgArg { pkg })
+                .map(|r| r.ok)
+                .unwrap_or(false);
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = (app, pkg);
     false
 }

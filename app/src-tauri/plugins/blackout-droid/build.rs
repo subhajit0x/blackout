@@ -12,6 +12,9 @@ fn main() {
         r#"<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />"#,
         r#"<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />"#,
         r#"<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />"#,
+        // See every installed app so we can surface sideloaded / suspicious ones
+        // (a security tool — not for Play Store distribution).
+        r#"<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />"#,
     ];
     tauri_plugin::mobile::update_android_manifest(
         "BLACKOUT DROID PLUGIN",

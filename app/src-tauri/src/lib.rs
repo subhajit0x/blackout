@@ -112,6 +112,41 @@ fn apply_fix(app: tauri::AppHandle, id: String) -> Vec<bp::ActionResult> {
     }
 }
 
+/// "Am I hacked?" — list installed apps with threat flags (Android).
+#[tauri::command]
+fn list_apps(app: tauri::AppHandle) -> serde_json::Value {
+    #[cfg(target_os = "android")]
+    return serde_json::to_value(blackout_droid::list_apps(&app))
+        .unwrap_or_else(|_| serde_json::json!([]));
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        serde_json::json!([])
+    }
+}
+
+#[tauri::command]
+fn uninstall_app(app: tauri::AppHandle, pkg: String) -> bool {
+    #[cfg(target_os = "android")]
+    return blackout_droid::uninstall_app(&app, &pkg);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, pkg);
+        false
+    }
+}
+
+#[tauri::command]
+fn open_app_settings(app: tauri::AppHandle, pkg: String) -> bool {
+    #[cfg(target_os = "android")]
+    return blackout_droid::open_app_settings(&app, &pkg);
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, pkg);
+        false
+    }
+}
+
 /// Android lockdown/panic: clear the clipboard and jump to Airplane mode (apps
 /// can't toggle radios, so we open the panel — honest, never faked).
 #[cfg(target_os = "android")]
@@ -168,6 +203,10 @@ pub fn run() {
             open_settings,
             harden_now,
             apply_fix,
+            // "Am I hacked?" app inventory (Android)
+            list_apps,
+            uninstall_app,
+            open_app_settings,
             // Auto-clean watched folder (desktop)
             watch::start_watch,
             watch::stop_watch,
