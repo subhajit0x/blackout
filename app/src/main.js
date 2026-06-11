@@ -78,15 +78,15 @@ function applyPlatformCopy() {
     macos: "Reduce device exposure. Actions macOS blocks are clearly marked.",
     android: "One-tap exposure controls for Android — opens the right system panel and clears your clipboard.",
     ios: "iOS limits what apps may change. Your OPSEC guide has the exact steps for iPhone/iPad.",
-    windows: "Live hardening for Windows is on the way — your OPSEC guide has the steps to do now.",
-    linux: "Live hardening for Linux is on the way — your OPSEC guide has the steps to do now.",
+    windows: "One tap: clear the clipboard and lock the screen.",
+    linux: "One tap: clear the clipboard, cut Wi-Fi, and lock the screen.",
   };
   const panicSub = {
     macos: "One tap, complete isolation: wipe clipboard, kill Wi-Fi/Bluetooth, turn AirDrop off, open Lockdown Mode, lock the screen.",
     android: "One tap: clear the clipboard and jump to Airplane mode so you can cut every radio fast.",
     ios: "iOS won't let an app cut radios or lock the device. Use the steps in your OPSEC guide.",
-    windows: "Live panic actions for Windows are coming — your OPSEC guide has the steps for now.",
-    linux: "Live panic actions for Linux are coming — your OPSEC guide has the steps for now.",
+    windows: "One tap: clear the clipboard and lock the screen instantly.",
+    linux: "One tap: clear the clipboard, turn off Wi-Fi, and lock your session.",
   };
   const setTxt = (id, txt) => { const e = el(id); if (e && txt) e.textContent = txt; };
   setTxt("lockdownSub", lockSub[PLAT] || lockSub.macos);
@@ -127,8 +127,20 @@ function renderLockdownGeneric() {
       const results = await invoke("apply_level", { level: 4 }).catch(() => []);
       renderActions("lockdownResults", results, "Lockdown applied");
     });
+  } else if (PLAT === "windows" || PLAT === "linux") {
+    // Real, no-admin automation: clipboard + screen lock (+ Wi-Fi on Linux).
+    host.innerHTML = `<div class="hardening">
+      <h2 class="sub">${platName()} lockdown</h2>
+      <p class="sub-note">One tap: clear the clipboard${PLAT === "linux" ? ", turn off Wi-Fi," : ""} and lock the screen.</p>
+      <button class="btn btn-primary harden gen-lockdown">🛡 Lock down now</button>
+    </div>`;
+    host.querySelector(".gen-lockdown").addEventListener("click", async () => {
+      toast("Locking down…");
+      const results = await invoke("apply_level", { level: 4 }).catch(() => []);
+      renderActions("lockdownResults", results, "Lockdown applied");
+    });
   } else {
-    // iOS / Windows / Linux: no live control — point to the device guide.
+    // iOS: no live control — point to the device guide.
     host.innerHTML = `<div class="hardening">
       <p class="sub-note">Live one-tap control isn't available on ${platName()} yet. Your OPSEC guide has the exact, accurate steps for this device.</p>
       <button class="btn btn-primary gen-guide">Open the ${platName()} guide →</button>

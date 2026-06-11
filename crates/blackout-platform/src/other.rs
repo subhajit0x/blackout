@@ -6,11 +6,17 @@
 //! "unknown" if a tool isn't present, so it's safe on any distro/edition.
 //! Live LOCKDOWN/PANIC system control is still reported honestly as planned.
 
-use crate::{check, device, step, tally, unavailable, ActionResult, Capabilities, GuideStep, OpsecReport};
+use crate::{check, device, done, step, tally, unavailable, ActionResult, Capabilities, GuideStep, OpsecReport};
 use std::process::Command;
 
+/// Whether a command ran and exited successfully.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn ran(cmd: &str, args: &[&str]) -> bool {
+    Command::new(cmd).args(args).status().map(|s| s.success()).unwrap_or(false)
+}
+
 /// Run a command, returning trimmed stdout on success (None otherwise).
-#[allow(dead_code)]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn out(cmd: &str, args: &[&str]) -> Option<String> {
     Command::new(cmd)
         .args(args)
@@ -22,15 +28,11 @@ fn out(cmd: &str, args: &[&str]) -> Option<String> {
 
 pub fn opsec_score() -> OpsecReport {
     #[cfg(target_os = "linux")]
-    {
-        return build(linux_checks());
-    }
+    let report = build(linux_checks());
     #[cfg(target_os = "windows")]
-    {
-        return build(windows_checks());
-    }
-    #[allow(unreachable_code)]
-    OpsecReport {
+    let report = build(windows_checks());
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    let report = OpsecReport {
         score: 0,
         device: device(std::env::consts::OS, "", ""),
         checks: vec![check(
@@ -40,11 +42,12 @@ pub fn opsec_score() -> OpsecReport {
             0,
         )],
         guide: generic_guide(),
-    }
+    };
+    report
 }
 
 /// Assemble a report from real checks + the prioritized fallback guide.
-#[allow(dead_code)]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn build(mut checks: Vec<crate::Check>) -> OpsecReport {
     for c in checks.iter_mut() {
         c.category = "Device".into();
@@ -153,17 +156,75 @@ fn generic_guide() -> Vec<GuideStep> {
 }
 
 pub fn apply_level(_level: u32) -> Vec<ActionResult> {
-    vec![unavailable("Lockdown", "One-tap system control for this OS is planned. The OPSEC guide has the steps to do now; file cleaning works fully.")]
+    lockdown_actions()
 }
 
 pub fn panic_now() -> Vec<ActionResult> {
-    vec![unavailable("Panic", "One-tap panic actions for this OS are planned. See the OPSEC guide for the manual steps.")]
+    lockdown_actions()
+}
+
+/// Real, no-admin lockdown automation: clear the clipboard, lock the screen, and
+/// (Linux) cut Wi-Fi. Each step reports honestly if its tool isn't available.
+fn lockdown_actions() -> Vec<ActionResult> {
+    #[cfg(target_os = "linux")]
+    let r = linux_lockdown();
+    #[cfg(target_os = "windows")]
+    let r = windows_lockdown();
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    let r = vec![unavailable(
+        "Lockdown",
+        "One-tap system control isn't available on this OS. The OPSEC guide has the steps; file cleaning works fully.",
+    )];
+    r
+}
+
+#[cfg(target_os = "linux")]
+fn linux_lockdown() -> Vec<ActionResult> {
+    vec![
+        clear_clipboard_linux(),
+        if ran("nmcli", &["radio", "wifi", "off"]) {
+            done("Wi-Fi off", "Wireless turned off via NetworkManager.")
+        } else {
+            unavailable("Wi-Fi", "Couldn't toggle Wi-Fi (nmcli/NetworkManager not found).")
+        },
+        if ran("loginctl", &["lock-session"]) || ran("xdg-screensaver", &["lock"]) {
+            done("Screen locked", "Your session is locked.")
+        } else {
+            unavailable("Screen lock", "Couldn't lock the screen automatically.")
+        },
+    ]
+}
+
+#[cfg(target_os = "windows")]
+fn windows_lockdown() -> Vec<ActionResult> {
+    vec![
+        if ran("cmd", &["/C", "type nul | clip"]) {
+            done("Clipboard cleared", "Any copied text was wiped.")
+        } else {
+            unavailable("Clipboard", "Couldn't clear the clipboard.")
+        },
+        if ran("rundll32.exe", &["user32.dll,LockWorkStation"]) {
+            done("Screen locked", "The workstation is locked.")
+        } else {
+            unavailable("Screen lock", "Couldn't lock the workstation.")
+        },
+    ]
+}
+
+#[cfg(target_os = "linux")]
+fn clear_clipboard_linux() -> ActionResult {
+    // Wayland (wl-clipboard) then X11 (xsel).
+    if ran("wl-copy", &["--clear"]) || ran("xsel", &["-bc"]) {
+        done("Clipboard cleared", "Any copied text was wiped.")
+    } else {
+        unavailable("Clipboard", "Couldn't clear the clipboard (need wl-clipboard or xsel).")
+    }
 }
 
 pub fn capabilities() -> Capabilities {
     Capabilities {
         platform: std::env::consts::OS.to_string(),
-        wifi: false,
+        wifi: cfg!(target_os = "linux"), // Linux can toggle Wi-Fi via nmcli (no admin)
         bluetooth: false,
         firewall: true,
         settings_deeplink: false,

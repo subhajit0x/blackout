@@ -37,7 +37,7 @@ deep-links you to the system toggle — never faked.
 | **CLEAN** (metadata removal) | ✅ full | ✅ full | ✅ full | ✅ full |
 | **OPSEC** score (live checks) | ✅ 13 checks + fixes | ✅ core checks | ✅ 9 checks + fixes | 🟡 guide only |
 | **OPSEC** device guide | ✅ | ✅ | ✅ | ✅ |
-| **LOCKDOWN / PANIC** actions | ✅ real (radios, AirDrop, firewall, lock) | 🟡 planned | 🟡 guide only* | 🟡 guide only* |
+| **LOCKDOWN / PANIC** actions | ✅ real (radios, AirDrop, firewall, lock) | ✅ clipboard + screen lock (Linux: +Wi-Fi) | ✅ panels + clipboard | 🟡 guide |
 | Finder right-click clean | ✅ | — | — | — |
 | Auto-clean watched folder | ✅ | ✅ | — | — |
 
