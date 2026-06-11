@@ -23,8 +23,8 @@ macOS, Windows, Linux, **iOS and Android** from the same codebase.
 |---|---|---|
 | **CLEAN** | Strip hidden metadata (GPS, camera, author, IPTC, …) from files before sharing. Originals never touched. | ✅ Works on every platform (pure Rust) |
 | **OPSEC SCORE** | Read-only exposure scorecard in plain language. | ✅ macOS · Android · Windows · Linux · 🟡 iOS guide |
-| **LOCKDOWN** | Reduce device exposure by privacy level. | ✅ macOS · Android (panels + clipboard) · 🟡 Win/Linux/iOS guide |
-| **PANIC** | One tap: wipe clipboard, kill radios, lock screen. | ✅ macOS · Android · 🟡 Win/Linux/iOS guide |
+| **LOCKDOWN** | Reduce device exposure by privacy level. | ✅ macOS · Android · Windows · Linux · 🟡 iOS guide |
+| **PANIC** | One tap: wipe clipboard, kill radios, lock screen. | ✅ macOS · Android · Windows · Linux · 🟡 iOS guide |
 
 The honesty rule: anything an OS won't let an app do (Apple Lockdown Mode, global
 camera/mic disable, iOS radio toggles) is **clearly labelled "not available"** or
